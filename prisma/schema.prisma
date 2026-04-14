@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model UserTemp {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  token     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id          String         @id @default(uuid())
+  name        String?
+  lastName    String?
+  email       String         @unique
+  password    String
+  roleId      String
+  token       String?        @unique
+  verified    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  countryCode String?
+  active      Boolean        @default(false)
+  online      Boolean        @default(false)
+  image       String?
+  status      AssessorStatus @default(OFFLINE)
+  maxCapacity Int            @default(6)
+
+  kycStatus    KycStatus @default(NOT_STARTED)
+  kycSessionId String?   @unique
+
+  bankAccounts          BankAccount[]
+  currencyRateHistories CurrencyRateHistory[]
+  information           InformationUser?
+  ourPaymentMethods     OurPaymentMethod[]
+  country               Country?              @relation(fields: [countryCode], references: [country_code])
+  role                  Role                  @relation(fields: [roleId], references: [id])
+  providers             Provider[]
+  tickets               Ticket[]              @relation("UserTickets")
+  messages              Message[]
+
+  teamId String?
+  team   Team?   @relation("TeamMembers", fields: [teamId], references: [id])
+
+  managedTeam Team? @relation("TeamLeader")
+
+  assignedTickets Ticket[]  @relation("AssessorTickets")
+  lastAssignedAt  DateTime?
+
+  receivedRatings Review[] @relation("AssessorReviews")
+
+  assessorReceiptNotifications TicketReceiptNotification[] @relation("AssessorReceiptNotifications")
+  managerReceiptNotifications  TicketReceiptNotification[] @relation("ManagerReceiptNotifications")
+}
+
+model Team {
+  id   String @id @default(uuid())
+  name String
+
+  managerId String @unique
+  manager   User   @relation("TeamLeader", fields: [managerId], references: [id])
+
+  members User[] @relation("TeamMembers")
+
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  stars     Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  ticketId String @unique
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
+
+  assessorId String
+  assessor   User   @relation("AssessorReviews", fields: [assessorId], references: [id])
+}
+
+model Provider {
+  id         String   @id @default(uuid())
+  provider   String
+  providerId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerId])
+}
+
+model InformationUser {
+  id                     String   @id @default(uuid())
+  phone                  String?  @unique
+  dateBirth              String?
+  acceptedTerms          Boolean  @default(false)
+  receiveMarketingEmails Boolean  @default(false)
+  userId                 String   @unique
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  address                String?
+  documentNumber         String?
+  documentType           String?
+  postalCode             String?
+  user                   User     @relation(fields: [userId], references: [id])
+}
+
+model Country {
+  id           String @id @default(uuid())
+  country_name String
+  country_code String @unique
+  users        User[]
+}
+
+model Role {
+  id    String @id @default(uuid())
+  name  Roles  @unique @default(client)
+  level Int
+  users User[]
+}
+
+//!PENDIENTES PARA RE-DEFINIR EN EL FLUJO DEL TICKET
+model Recipient {
+  id                   String         @id @default(uuid())
+  firstName            String
+  lastName             String
+  email                String         @unique
+  phone                String
+  identificationNumber String         @unique
+  updatedAt            DateTime       @updatedAt
+  createdAt            DateTime       @default(now())
+  paymentDetail        PaymentDetail?
+  tickets              Ticket[]
+}
+
+model PaymentDetail {
+  id               String            @id @default(uuid())
+  paymentMethod    PaymentMethodType
+  bank             String?
+  accountType      String?
+  accountNumber    String?
+  country          String?
+  state            String?
+  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime          @default(now())
+  recipientId      String            @unique
+  accountVerified  Boolean?
+  addressOrDetails String?
+  aliasOrReference String?
+  email            String?
+  phone            String?
+  recipient        Recipient         @relation(fields: [recipientId], references: [id])
+}
+
+model CurrencyRate {
+  id               String           @id @default(uuid())
+  createdAt        DateTime         @default(now())
+  buyRate          Float
+  isActive         Boolean          @default(true)
+  name             String
+  sellRate         Float
+  updatedAt        DateTime         @updatedAt
+  fromCurrency     String
+  toCurrency       String
+  marketRate       Float?
+  dolarBcvRate     Float?
+  eurBcvRate       Float?
+  fromCurrencyBase CurrencyBaseRate @relation("FromCurrency", fields: [fromCurrency], references: [currency])
+  toCurrencyBase   CurrencyBaseRate @relation("ToCurrency", fields: [toCurrency], references: [currency])
+
+  paymentMethods CurrencyPaymentMethod[]
+  histories      CurrencyRateHistory[]
+  tickets        Ticket[]
+
+  @@unique([fromCurrency, toCurrency])
+  @@index([fromCurrency, toCurrency, isActive])
+}
+
+model CurrencyPaymentMethod {
+  id String @id @default(uuid())
+
+  senderFeePercentage Float @default(0)
+
+  receiverFeePercentage Float @default(0)
+
+  isActive Boolean @default(true)
+
+  currencyRateId String
+  currencyRate   CurrencyRate @relation(fields: [currencyRateId], references: [id])
+
+  ourPaymentMethodId String
+  ourPaymentMethod   OurPaymentMethod @relation(fields: [ourPaymentMethodId], references: [id])
+
+  @@index([currencyRateId])
+}
+
+model CurrencyBaseRate {
+  id           String         @id @default(uuid())
+  currency     String         @unique
+  name         String
+  buyRate      Float?
+  sellRate     Float?
+  marketRate   Float?
+  dolarBcvRate Float?
+  eurBcvRate   Float?
+  isActive     Boolean        @default(true)
+  isBase       Boolean        @default(false)
+  isVolatile   Boolean        @default(false)
+  isCripto     Boolean        @default(false)
+  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime       @default(now())
+  countryName  String
+  fromRates    CurrencyRate[] @relation("FromCurrency")
+  toRates      CurrencyRate[] @relation("ToCurrency")
+
+  @@index([currency, isActive])
+}
+
+model CurrencyRateHistory {
+  id             String          @id @default(uuid())
+  createdAt      DateTime        @default(now())
+  operation      String
+  method         OperationMethod
+  firstCreatedAt DateTime
+  buyRate        Float
+  isActive       Boolean
+  name           String
+  sellRate       Float
+  newUpdatedAt   DateTime
+  fromCurrency   String
+  toCurrency     String
+  marketRate     Float?
+  dolarBcvRate   Float?
+  eurBcvRate     Float?
+  userId         String
+  currencyRateId String
+  currencyRate   CurrencyRate    @relation(fields: [currencyRateId], references: [id])
+  userModifier   User            @relation(fields: [userId], references: [id])
+}
+
+model OurPaymentMethod {
+  id                       String   @id @default(uuid())
+  financialInstitutionName String
+  country                  String
+  type                     String   @default("Banco")
+  accountHolderName        String?
+  accountHolderId          String?
+  accountNumberOrCode      String?
+  aliasOrReference         String?
+  phoneNumber              String?
+  emailAddress             String?
+  bankAccountType          String?
+  addressOrDetails         String?
+  additionalNotes          String?
+  isActive                 Boolean  @default(true)
+  userId                   String
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id])
+
+  currencyRateConfigs CurrencyPaymentMethod[]
+  tickets             Ticket[]
+}
+
+model BankAccount {
+  id                       String   @id @default(uuid())
+  financialInstitutionName String   @unique
+  country                  String
+  type                     String   @default("Banco")
+  accountHolderName        String?
+  accountHolderId          String?
+  accountNumberOrCode      String?  @unique
+  aliasOrReference         String?
+  phoneNumber              String?
+  emailAddress             String?
+  bankAccountType          String?
+  addressOrDetails         String?
+  additionalNotes          String?
+  currencyCode             String?
+  isActive                 Boolean  @default(true)
+  userId                   String
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id])
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  ticketNumber String       @unique
+  status       TicketStatus @default(PENDING)
+
+  // --- Relaciones ---
+  userId String
+  user   User   @relation("UserTickets", fields: [userId], references: [id])
+
+  recipientId String
+  recipient   Recipient @relation(fields: [recipientId], references: [id])
+
+  paymentMethodId  String
+  ourPaymentMethod OurPaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  currencyRateId String
+  currencyRate   CurrencyRate @relation(fields: [currencyRateId], references: [id])
+
+  assessorId String?
+  assessor   User?   @relation("AssessorTickets", fields: [assessorId], references: [id])
+
+  amountSent Float
+
+  appliedRate Float
+  ticketType  TicketType
+
+  feeRatePercentage    Float @default(0)
+  feePaymentPercentage Float @default(0)
+
+  totalDepositRequired Float
+
+  totalToReceive Float
+
+  referenceNumber String?
+  receiptImage    String?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chat Chat?
+
+  review Review?
+
+  receiptNotifications TicketReceiptNotification[]
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+model TicketReceiptNotification {
+  id       String @id @default(uuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
+
+  assessorId String
+  assessor   User   @relation("AssessorReceiptNotifications", fields: [assessorId], references: [id])
+
+  managerId String
+  manager   User   @relation("ManagerReceiptNotifications", fields: [managerId], references: [id])
+
+  selectedImageUrl        String
+  status                  TicketReceiptStatus @default(PAYMENT_VERIFIED)
+  managerNote             String?
+  managerResponseImageUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([managerId, status, createdAt])
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ticketId String @unique
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
+
+  messages Message[]
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  content  String?
+  fileUrl  String?
+  fileType String?
+
+  isInternal Boolean @default(false)
+
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id])
+
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id])
+}
+
+model Office {
+  id      String @id @default(uuid())
+  country String
+  city    String
+
+  address String
+
+  openingTime String
+  closingTime String
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Roles {
+  admin
+  assessor
+  client
+  manager
+}
+
+enum KycStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IN_REVIEW
+  APPROVED
+  DECLINED
+  ABANDONED
+}
+
+enum PaymentMethodType {
+  TRANSFER
+  CASH
+  PREPAID_CARD
+}
+
+enum SenderPaymentMethodType {
+  CREDIT_CARD
+  BANK_TRANSFER
+  PAYPAL
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum OperationMethod {
+  CREATE
+  UPDATE
+}
+
+enum TicketType {
+  SELF
+  THIRD_PARTY
+}
+
+enum TicketStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum TicketReceiptStatus {
+  PAYMENT_VERIFIED
+  CUSTOMER_PAID
+  REJECTED
+}
+
+enum AssessorStatus {
+  AVAILABLE
+  BUSY
+  BREAK
+  OFFLINE
+}

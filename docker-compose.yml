@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: turisto_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sangabriel56-
+      POSTGRES_DB: turistocash
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: turisto_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: mikevadmin@vertice.com
+      PGADMIN_DEFAULT_PASSWORD: Mikev12345-
+    ports:
+      - "5555:80"
+    depends_on:
+      - db
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: turisto_api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # Sobrescribimos el host a "db" para que apunte al contenedor de la base de datos de Docker
+      - DATABASE_URL=postgresql://postgres:sangabriel56-@db:5432/turistocash?schema=public
+      - NODE_ENV=production
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
