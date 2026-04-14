@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsBoolean } from 'class-validator';
+import { IsString, IsBoolean } from 'class-validator';
 export class CreateOfficeDto {
   @IsString()
   country: string;
@@ -13,10 +13,8 @@ export class CreateOfficeDto {
   isActive: boolean = true;
 
   @IsString()
-  @IsOptional()
   openingTime: string;
 
   @IsString()
-  @IsOptional()
-  closingTime?: string;
+  closingTime: string;
 }
