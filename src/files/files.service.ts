@@ -4,6 +4,8 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import 'multer';
 import {
   PutObjectCommand,
   DeleteObjectCommand,
@@ -16,9 +18,14 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
 export class FilesService {
-  private readonly bucketName = 'vertice';
+  private readonly bucketName: string;
 
-  constructor(@Inject('S3_CLIENT') private readonly s3: S3) {}
+  constructor(
+    @Inject('S3_CLIENT') private readonly s3: S3,
+    private readonly configService: ConfigService,
+  ) {
+    this.bucketName = this.configService.get<string>('BUCKET_NAME_DIGITAL_OCEAN') || 'vertice-spaces';
+  }
 
   async uploadFile(
     file: Express.Multer.File,
@@ -43,7 +50,7 @@ export class FilesService {
       await this.s3.send(new PutObjectCommand(params as PutObjectCommandInput));
 
       return `https://${this.bucketName}.sfo3.digitaloceanspaces.com/${keyValue}`;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file to Spaces:', error);
       throw new Error(`Failed to upload file: ${error.message}`);
     }
@@ -68,7 +75,7 @@ export class FilesService {
       );
 
       console.log('File deleted successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting file from Spaces:', error);
       if (error instanceof BadRequestException) {
         throw error;
@@ -90,7 +97,7 @@ export class FilesService {
 
       // URL válida por 60 segundos
       return await getSignedUrl(this.s3, command, { expiresIn: 60 });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating signed URL:', error);
       throw new InternalServerErrorException(
         'Error al generar el enlace de descarga',
@@ -101,7 +108,7 @@ export class FilesService {
   private async bucketExists(): Promise<void> {
     try {
       await this.s3.headBucket({ Bucket: this.bucketName });
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'NotFound' || error.name === 'NoSuchBucket') {
         throw new Error(`Bucket "${this.bucketName}" no existe.`);
       }

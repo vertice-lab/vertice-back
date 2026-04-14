@@ -18,5 +18,5 @@ export class CreateOfficeDto {
 
   @IsString()
   @IsOptional()
-  closingTime: string;
+  closingTime?: string;
 }
