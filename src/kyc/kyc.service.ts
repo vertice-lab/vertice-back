@@ -46,7 +46,7 @@ export class KycService {
 
 
   public validateSignature(
-    payload: any,
+    rawBody: Buffer,
     signatureGiven: string,
     timestampStr: string,
   ): boolean {
@@ -55,7 +55,7 @@ export class KycService {
       throw new InternalServerErrorException('Webhook secret not configured');
     }
 
-    if (!payload || !signatureGiven) {
+    if (!rawBody || !signatureGiven) {
       return false;
     }
 
@@ -69,18 +69,13 @@ export class KycService {
       }
     }
 
-    // Calcular hash con el método Simple Signature (Recomendado)
-    const { session_id, status, created_at } = payload;
-    const signatureData = `${session_id}|${status}|${created_at}`;
-
-    this.logger.log(`🔍 Signature Data a encriptar: "${signatureData}"`);
-
+    // Calcular hash de los bytes directos con el método V2 (Agnóstico del Formato)
     const expectedHash = crypto
       .createHmac('sha256', this.WEBHOOK_SECRET)
-      .update(signatureData)
+      .update(rawBody)
       .digest('hex');
 
-    this.logger.log(`🔍 Firma calculada: ${expectedHash} | 🔑 Firma de Didit: ${signatureGiven}`);
+    this.logger.log(`🔍 Firma calculada (V2): ${expectedHash} | 🔑 Firma de Didit (V2): ${signatureGiven}`);
 
     // Usar timingSafeEqual para evitar ataques de timing
     try {
