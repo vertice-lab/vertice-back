@@ -46,7 +46,7 @@ export class KycService {
 
 
   public validateSignature(
-    rawBody: Buffer,
+    payload: any,
     signatureGiven: string,
     timestampStr: string,
   ): boolean {
@@ -55,22 +55,27 @@ export class KycService {
       throw new InternalServerErrorException('Webhook secret not configured');
     }
 
-    if (!rawBody || !signatureGiven || !timestampStr) {
+    if (!payload || !signatureGiven) {
       return false;
     }
 
-    // Comprobar la frescura del timestamp (5 minutos máximo)
-    const timestamp = parseInt(timestampStr, 10);
-    const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - timestamp) > 300) {
-      this.logger.warn(`Webhook timestamp is too old or in the future: ${timestamp}`);
-      return false;
+    // Comprobar la frescura del timestamp (si lo envían)
+    if (timestampStr) {
+      const timestamp = parseInt(timestampStr, 10);
+      const now = Math.floor(Date.now() / 1000);
+      if (Math.abs(now - timestamp) > 300) {
+        this.logger.warn(`Webhook timestamp is too old or in the future: ${timestamp}`);
+        return false;
+      }
     }
 
-    // Calcular nuestro hash esperado
+    // Calcular hash con el método Simple Signature (Recomendado)
+    const { session_id, status, created_at } = payload;
+    const signatureData = `${session_id}|${status}|${created_at}`;
+
     const expectedHash = crypto
       .createHmac('sha256', this.WEBHOOK_SECRET)
-      .update(rawBody)
+      .update(signatureData)
       .digest('hex');
 
     this.logger.log(`🔍 Firma calculada: ${expectedHash} | 🔑 Firma de Didit: ${signatureGiven}`);

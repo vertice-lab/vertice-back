@@ -54,15 +54,15 @@ export class KycController {
   async handleDiditWebhook(
     @Req() req: RawBodyRequest<ExpressRequest>,
     @Res() res: Response,
-    @Headers('X-Signature-V2') signature: string,
-    @Headers('X-Timestamp') timestamp: string,
+    @Headers('x-signature-simple') signature: string,
+    @Headers('x-timestamp') timestamp: string,
   ) {
     try {
       this.logger.log('--- 🚀 NUEVO WEBHOOK ENTRANTE DE DIDIT ---');
-      this.logger.log(`Headers -> Signature: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}`);
+      this.logger.log(`Headers -> Signature-Simple: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}`);
       
-      if (!signature || !timestamp) {
-        this.logger.warn('Missing Didit headers');
+      if (!signature) {
+        this.logger.warn('Missing Didit signature header');
         throw new UnauthorizedException('Missing headers');
       }
 
@@ -73,8 +73,11 @@ export class KycController {
         throw new UnauthorizedException('Invalid payload');
       }
 
+      // Parseamos el JSON para usar el método Simple Signature (Recomendado)
+      const payload = JSON.parse(rawBody.toString('utf8'));
+
       const isValid = this.kycService.validateSignature(
-        rawBody,
+        payload,
         signature,
         timestamp,
       );
@@ -83,9 +86,6 @@ export class KycController {
         this.logger.error('Invalid signature for webhook from Didit');
         throw new UnauthorizedException('Invalid signature');
       }
-
-      // Si la firma es válida, parseamos el JSON original
-      const payload = JSON.parse(rawBody.toString('utf8'));
       
       // Importante: Procesar asíncronamente si toma mucho tiempo, o enviar la respuesta 200 de inmediato
       // ya que Didit puede hacer retries si la conexión tarda.
