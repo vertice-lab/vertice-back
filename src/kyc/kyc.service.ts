@@ -133,7 +133,7 @@ export class KycService {
       if (decision) {
         this.logger.log(`Decision received for session: ${JSON.stringify(decision)}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error updating user for session ${session_id}`, error.stack);
     }
   }
@@ -169,7 +169,7 @@ export class KycService {
 
       this.logger.log(`Didit session created and linked to user ${userId}`);
       return data;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Error creating Didit session', error?.response?.data || error.message);
       throw new InternalServerErrorException(
         'Failed to create Didit session',
@@ -219,7 +219,7 @@ export class KycService {
       );
       this.logger.log('Didit users list retrieved successfully');
       return data
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Error retrieving Didit users list', error.stack); this.logger.error('Error', error?.response?.data || error.message);
       throw new InternalServerErrorException(
         'Failed to retrieve Didit users list',
