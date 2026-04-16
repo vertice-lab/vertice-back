@@ -252,4 +252,43 @@ export class ChatService {
 
     return await this.saveMessage(ticketNumber, ticket.assessorId, welcomeText);
   }
+
+  async autoFinalizeTicket(ticketNumber: string) {
+    try {
+      const ticket = await this.prisma.ticket.findUnique({
+        where: { ticketNumber },
+        include: { chat: { include: { messages: { orderBy: { createdAt: 'desc' } } } } },
+      });
+
+      if (!ticket || ticket.status !== TicketStatus.PROCESSING) return null;
+
+      let currentReceiptImage = ticket.receiptImage;
+      if (!currentReceiptImage && ticket.chat && ticket.chat.messages.length > 0) {
+        const lastImageMsg = ticket.chat.messages.find(m => m.fileUrl && m.senderId === ticket.assessorId);
+        if (lastImageMsg) {
+          currentReceiptImage = lastImageMsg.fileUrl;
+        }
+      }
+
+      if (!currentReceiptImage) {
+        // Can't auto finalize properly if missing proof.
+        return null;
+      }
+
+      const updatedTicket = await this.prisma.ticket.update({
+        where: { ticketNumber },
+        data: {
+          status: TicketStatus.SUCCESS,
+          ...(ticket.receiptImage !== currentReceiptImage && {
+            receiptImage: currentReceiptImage,
+          }),
+        },
+      });
+
+      return updatedTicket;
+    } catch (e) {
+      console.error('Error auto-finalizing ticket:', e);
+      return null;
+    }
+  }
 }

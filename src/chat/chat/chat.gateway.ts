@@ -189,6 +189,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       minutes,
       startedAt: new Date().toISOString(),
     });
+
+    // Handle timer at the backend memory too
+    setTimeout(async () => {
+      try {
+        const finalized = await this.chatService.autoFinalizeTicket(ticketNumber);
+        if (finalized) {
+          this.server.to(ticketNumber).emit('ticket-finalized', {
+            ticketNumber: finalized.ticketNumber,
+            status: finalized.status,
+          });
+        }
+      } catch (error) {
+        this.logger.error(`Error auto-finalizing ticket on timeout: ${error.message}`);
+      }
+    }, minutes * 60 * 1000);
   }
 
   notifyTicketRejected(
