@@ -18,11 +18,10 @@ import { KycStatus } from './interfaces/kyc-status.enum';
 @Injectable()
 export class KycService {
   private readonly logger = new Logger(KycService.name);
-  private readonly DIDIT_API_URL: string;
-  private readonly DIDIT_API_KEY: string;
+  private readonly DIDIT_API_URL?: string;
+  private readonly DIDIT_API_KEY?: string;
 
-  // Note: the webhook secret should be extracted from ConfigService if possible,
-  // but using process.env directly here for simplicity if it's already loaded
+
   private readonly WEBHOOK_SECRET = process.env.DIDIT_WEBHOOK_SECRET || '';
 
   constructor(
@@ -45,7 +44,7 @@ export class KycService {
     }
   }
 
-   
+
   public validateSignature(
     rawBody: Buffer,
     signatureGiven: string,
@@ -134,18 +133,18 @@ export class KycService {
       if (decision) {
         this.logger.log(`Decision received for session: ${JSON.stringify(decision)}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error updating user for session ${session_id}`, error.stack);
     }
   }
 
- 
+
   async createDiditSession(payload: CreateSessionDto, userId: string): Promise<CreateSessionResponse> {
     try {
       const finalPayload = {
         ...payload,
         workflow_id: payload.workflow_id || this.configService.get<string>('DIDIT_WORKFLOW_ID'),
-        callback: payload.callback || this.configService.get<string>('DIDIT_CALLBACK_URL') || 'https://tu-api.com/kyc/webhook/didit',
+        callback: payload.callback || this.configService.get<string>('DIDIT_CALLBACK_URL')
       };
 
       const { data } = await axios.post<CreateSessionResponse>(
@@ -153,7 +152,7 @@ export class KycService {
         finalPayload,
         {
           headers: {
-            'x-api-key': this.DIDIT_API_KEY, 
+            'x-api-key': this.DIDIT_API_KEY,
             'Content-Type': 'application/json',
           },
         },
@@ -170,7 +169,7 @@ export class KycService {
 
       this.logger.log(`Didit session created and linked to user ${userId}`);
       return data;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Error creating Didit session', error?.response?.data || error.message);
       throw new InternalServerErrorException(
         'Failed to create Didit session',
@@ -200,13 +199,13 @@ export class KycService {
 
   async getListUsers(payload: ListUsersQueryDto): Promise<ListUsersResponse> {
     try {
-      
+
       const { data } = await axios.get<ListUsersResponse>(
         `${this.DIDIT_API_URL}/v3/users`,
-        
+
         {
           headers: {
-            'x-api-key': this.DIDIT_API_KEY, 
+            'x-api-key': this.DIDIT_API_KEY,
             'Content-Type': 'application/json',
           },
           params: {
@@ -220,8 +219,9 @@ export class KycService {
       );
       this.logger.log('Didit users list retrieved successfully');
       return data
-    } catch (error) {
-      this.logger.error('Error retrieving Didit users list', error.stack);this.logger.error('Error', error?.response?.data || error.message);
+    } catch (error: any) {
+      this.logger.error('Error retrieving Didit users list', error.stack);
+      this.logger.error('Error', error?.response?.data || error.message);
       throw new InternalServerErrorException(
         'Failed to retrieve Didit users list',
         error?.response?.data || error.message,

@@ -16,73 +16,61 @@ model UserTemp {
 }
 
 model User {
-  id          String         @id @default(uuid())
-  name        String?
-  lastName    String?
-  email       String         @unique
-  password    String
-  roleId      String
-  token       String?        @unique
-  verified    Boolean        @default(false)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  countryCode String?
-  active      Boolean        @default(false)
-  online      Boolean        @default(false)
-  image       String?
-  status      AssessorStatus @default(OFFLINE)
-  maxCapacity Int            @default(6)
-
-  kycStatus    KycStatus @default(NOT_STARTED)
-  kycSessionId String?   @unique
-
-  bankAccounts          BankAccount[]
-  currencyRateHistories CurrencyRateHistory[]
-  information           InformationUser?
-  ourPaymentMethods     OurPaymentMethod[]
-  country               Country?              @relation(fields: [countryCode], references: [country_code])
-  role                  Role                  @relation(fields: [roleId], references: [id])
-  providers             Provider[]
-  tickets               Ticket[]              @relation("UserTickets")
-  messages              Message[]
-
-  teamId String?
-  team   Team?   @relation("TeamMembers", fields: [teamId], references: [id])
-
-  managedTeam Team? @relation("TeamLeader")
-
-  assignedTickets Ticket[]  @relation("AssessorTickets")
-  lastAssignedAt  DateTime?
-
-  receivedRatings Review[] @relation("AssessorReviews")
-
+  id                           String                      @id @default(uuid())
+  name                         String?
+  lastName                     String?
+  email                        String                      @unique
+  password                     String
+  roleId                       String
+  token                        String?                     @unique
+  verified                     Boolean                     @default(false)
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime                    @updatedAt
+  countryCode                  String?
+  active                       Boolean                     @default(false)
+  image                        String?
+  online                       Boolean                     @default(false)
+  teamId                       String?
+  lastAssignedAt               DateTime?
+  maxCapacity                  Int                         @default(6)
+  status                       AssessorStatus              @default(OFFLINE)
+  kycSessionId                 String?                     @unique
+  kycStatus                    KycStatus                   @default(NOT_STARTED)
+  bankAccounts                 BankAccount[]
+  currencyRateHistories        CurrencyRateHistory[]
+  information                  InformationUser?
+  messages                     Message[]
+  ourPaymentMethods            OurPaymentMethod[]
+  providers                    Provider[]
+  receivedRatings              Review[]                    @relation("AssessorReviews")
+  managedTeam                  Team?                       @relation("TeamLeader")
+  assignedTickets              Ticket[]                    @relation("AssessorTickets")
+  tickets                      Ticket[]                    @relation("UserTickets")
   assessorReceiptNotifications TicketReceiptNotification[] @relation("AssessorReceiptNotifications")
   managerReceiptNotifications  TicketReceiptNotification[] @relation("ManagerReceiptNotifications")
+  country                      Country?                    @relation(fields: [countryCode], references: [country_code])
+  role                         Role                        @relation(fields: [roleId], references: [id])
+  team                         Team?                       @relation("TeamMembers", fields: [teamId], references: [id])
 }
 
 model Team {
-  id   String @id @default(uuid())
-  name String
-
-  managerId String @unique
-  manager   User   @relation("TeamLeader", fields: [managerId], references: [id])
-
-  members User[] @relation("TeamMembers")
-
+  id        String   @id @default(uuid())
+  name      String
+  managerId String   @unique
   createdAt DateTime @default(now())
+  manager   User     @relation("TeamLeader", fields: [managerId], references: [id])
+  members   User[]   @relation("TeamMembers")
 }
 
 model Review {
-  id        String   @id @default(uuid())
-  stars     Int
-  comment   String?
-  createdAt DateTime @default(now())
-
-  ticketId String @unique
-  ticket   Ticket @relation(fields: [ticketId], references: [id])
-
+  id         String   @id @default(uuid())
+  stars      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  ticketId   String   @unique
   assessorId String
-  assessor   User   @relation("AssessorReviews", fields: [assessorId], references: [id])
+  assessor   User     @relation("AssessorReviews", fields: [assessorId], references: [id])
+  ticket     Ticket   @relation(fields: [ticketId], references: [id])
 }
 
 model Provider {
@@ -127,7 +115,6 @@ model Role {
   users User[]
 }
 
-//!PENDIENTES PARA RE-DEFINIR EN EL FLUJO DEL TICKET
 model Recipient {
   id                   String         @id @default(uuid())
   firstName            String
@@ -161,43 +148,37 @@ model PaymentDetail {
 }
 
 model CurrencyRate {
-  id               String           @id @default(uuid())
-  createdAt        DateTime         @default(now())
+  id               String                  @id @default(uuid())
+  createdAt        DateTime                @default(now())
   buyRate          Float
-  isActive         Boolean          @default(true)
+  isActive         Boolean                 @default(true)
   name             String
   sellRate         Float
-  updatedAt        DateTime         @updatedAt
+  updatedAt        DateTime                @updatedAt
   fromCurrency     String
   toCurrency       String
-  marketRate       Float?
   dolarBcvRate     Float?
   eurBcvRate       Float?
-  fromCurrencyBase CurrencyBaseRate @relation("FromCurrency", fields: [fromCurrency], references: [currency])
-  toCurrencyBase   CurrencyBaseRate @relation("ToCurrency", fields: [toCurrency], references: [currency])
-
-  paymentMethods CurrencyPaymentMethod[]
-  histories      CurrencyRateHistory[]
-  tickets        Ticket[]
+  marketRate       Float?
+  paymentMethods   CurrencyPaymentMethod[]
+  fromCurrencyBase CurrencyBaseRate        @relation("FromCurrency", fields: [fromCurrency], references: [currency])
+  toCurrencyBase   CurrencyBaseRate        @relation("ToCurrency", fields: [toCurrency], references: [currency])
+  histories        CurrencyRateHistory[]
+  tickets          Ticket[]
 
   @@unique([fromCurrency, toCurrency])
   @@index([fromCurrency, toCurrency, isActive])
 }
 
 model CurrencyPaymentMethod {
-  id String @id @default(uuid())
-
-  senderFeePercentage Float @default(0)
-
-  receiverFeePercentage Float @default(0)
-
-  isActive Boolean @default(true)
-
-  currencyRateId String
-  currencyRate   CurrencyRate @relation(fields: [currencyRateId], references: [id])
-
-  ourPaymentMethodId String
-  ourPaymentMethod   OurPaymentMethod @relation(fields: [ourPaymentMethodId], references: [id])
+  id                    String           @id @default(uuid())
+  isActive              Boolean          @default(true)
+  currencyRateId        String
+  ourPaymentMethodId    String
+  receiverFeePercentage Float            @default(0)
+  senderFeePercentage   Float            @default(0)
+  currencyRate          CurrencyRate     @relation(fields: [currencyRateId], references: [id])
+  ourPaymentMethod      OurPaymentMethod @relation(fields: [ourPaymentMethodId], references: [id])
 
   @@index([currencyRateId])
 }
@@ -208,16 +189,16 @@ model CurrencyBaseRate {
   name         String
   buyRate      Float?
   sellRate     Float?
-  marketRate   Float?
-  dolarBcvRate Float?
-  eurBcvRate   Float?
   isActive     Boolean        @default(true)
   isBase       Boolean        @default(false)
   isVolatile   Boolean        @default(false)
-  isCripto     Boolean        @default(false)
   updatedAt    DateTime       @updatedAt
   createdAt    DateTime       @default(now())
   countryName  String
+  isCripto     Boolean        @default(false)
+  dolarBcvRate Float?
+  eurBcvRate   Float?
+  marketRate   Float?
   fromRates    CurrencyRate[] @relation("FromCurrency")
   toRates      CurrencyRate[] @relation("ToCurrency")
 
@@ -237,20 +218,20 @@ model CurrencyRateHistory {
   newUpdatedAt   DateTime
   fromCurrency   String
   toCurrency     String
-  marketRate     Float?
-  dolarBcvRate   Float?
-  eurBcvRate     Float?
   userId         String
   currencyRateId String
+  dolarBcvRate   Float?
+  eurBcvRate     Float?
+  marketRate     Float?
   currencyRate   CurrencyRate    @relation(fields: [currencyRateId], references: [id])
   userModifier   User            @relation(fields: [userId], references: [id])
 }
 
 model OurPaymentMethod {
-  id                       String   @id @default(uuid())
+  id                       String                  @id @default(uuid())
   financialInstitutionName String
   country                  String
-  type                     String   @default("Banco")
+  type                     String                  @default("Banco")
   accountHolderName        String?
   accountHolderId          String?
   accountNumberOrCode      String?
@@ -260,14 +241,13 @@ model OurPaymentMethod {
   bankAccountType          String?
   addressOrDetails         String?
   additionalNotes          String?
-  isActive                 Boolean  @default(true)
+  isActive                 Boolean                 @default(true)
   userId                   String
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
-  user                     User     @relation(fields: [userId], references: [id])
-
-  currencyRateConfigs CurrencyPaymentMethod[]
-  tickets             Ticket[]
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  currencyRateConfigs      CurrencyPaymentMethod[]
+  user                     User                    @relation(fields: [userId], references: [id])
+  tickets                  Ticket[]
 }
 
 model BankAccount {
@@ -284,58 +264,42 @@ model BankAccount {
   bankAccountType          String?
   addressOrDetails         String?
   additionalNotes          String?
-  currencyCode             String?
   isActive                 Boolean  @default(true)
   userId                   String
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+  currencyCode             String?
   user                     User     @relation(fields: [userId], references: [id])
 }
 
 model Ticket {
-  id           String       @id @default(uuid())
-  ticketNumber String       @unique
-  status       TicketStatus @default(PENDING)
-
-  // --- Relaciones ---
-  userId String
-  user   User   @relation("UserTickets", fields: [userId], references: [id])
-
-  recipientId String
-  recipient   Recipient @relation(fields: [recipientId], references: [id])
-
-  paymentMethodId  String
-  ourPaymentMethod OurPaymentMethod @relation(fields: [paymentMethodId], references: [id])
-
-  currencyRateId String
-  currencyRate   CurrencyRate @relation(fields: [currencyRateId], references: [id])
-
-  assessorId String?
-  assessor   User?   @relation("AssessorTickets", fields: [assessorId], references: [id])
-
-  amountSent Float
-
-  appliedRate Float
-  ticketType  TicketType
-
-  feeRatePercentage    Float @default(0)
-  feePaymentPercentage Float @default(0)
-
+  id                   String                      @id @default(uuid())
+  status               TicketStatus                @default(PENDING)
+  userId               String
+  recipientId          String
+  paymentMethodId      String
+  currencyRateId       String
+  amountSent           Float
+  appliedRate          Float
+  feeRatePercentage    Float                       @default(0)
+  feePaymentPercentage Float                       @default(0)
   totalDepositRequired Float
-
-  totalToReceive Float
-
-  referenceNumber String?
-  receiptImage    String?
-  notes           String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  chat Chat?
-
-  review Review?
-
+  totalToReceive       Float
+  referenceNumber      String?
+  receiptImage         String?
+  notes                String?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  ticketNumber         String                      @unique
+  ticketType           TicketType
+  assessorId           String?
+  chat                 Chat?
+  review               Review?
+  assessor             User?                       @relation("AssessorTickets", fields: [assessorId], references: [id])
+  currencyRate         CurrencyRate                @relation(fields: [currencyRateId], references: [id])
+  ourPaymentMethod     OurPaymentMethod            @relation(fields: [paymentMethodId], references: [id])
+  recipient            Recipient                   @relation(fields: [recipientId], references: [id])
+  user                 User                        @relation("UserTickets", fields: [userId], references: [id])
   receiptNotifications TicketReceiptNotification[]
 
   @@index([status, createdAt])
@@ -343,68 +307,55 @@ model Ticket {
 }
 
 model TicketReceiptNotification {
-  id       String @id @default(uuid())
-  ticketId String
-  ticket   Ticket @relation(fields: [ticketId], references: [id])
-
-  assessorId String
-  assessor   User   @relation("AssessorReceiptNotifications", fields: [assessorId], references: [id])
-
-  managerId String
-  manager   User   @relation("ManagerReceiptNotifications", fields: [managerId], references: [id])
-
+  id                      String              @id @default(uuid())
+  ticketId                String
+  assessorId              String
+  managerId               String
   selectedImageUrl        String
   status                  TicketReceiptStatus @default(PAYMENT_VERIFIED)
   managerNote             String?
   managerResponseImageUrl String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  assessor                User                @relation("AssessorReceiptNotifications", fields: [assessorId], references: [id])
+  manager                 User                @relation("ManagerReceiptNotifications", fields: [managerId], references: [id])
+  ticket                  Ticket              @relation(fields: [ticketId], references: [id])
 
   @@index([managerId, status, createdAt])
 }
 
 model Chat {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  ticketId String @unique
-  ticket   Ticket @relation(fields: [ticketId], references: [id])
-
-  messages Message[]
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  ticketId  String    @unique
+  ticket    Ticket    @relation(fields: [ticketId], references: [id])
+  messages  Message[]
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-
-  content  String?
-  fileUrl  String?
-  fileType String?
-
-  isInternal Boolean @default(false)
-
-  senderId String
-  sender   User   @relation(fields: [senderId], references: [id])
-
-  chatId String
-  chat   Chat   @relation(fields: [chatId], references: [id])
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  content    String?
+  fileUrl    String?
+  fileType   String?
+  senderId   String
+  chatId     String
+  isInternal Boolean  @default(false)
+  chat       Chat     @relation(fields: [chatId], references: [id])
+  sender     User     @relation(fields: [senderId], references: [id])
 }
 
 model Office {
-  id      String @id @default(uuid())
-  country String
-  city    String
-
-  address String
-
-  openingTime String
+  id          String   @id @default(uuid())
+  country     String
+  city        String
+  address     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isActive    Boolean  @default(true)
   closingTime String
-
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  openingTime String
 }
 
 enum Roles {
@@ -453,9 +404,9 @@ enum TicketType {
 
 enum TicketStatus {
   PENDING
-  PROCESSING
   SUCCESS
   FAILED
+  PROCESSING
   CANCELLED
 }
 

@@ -54,12 +54,14 @@ export class KycController {
   async handleDiditWebhook(
     @Req() req: RawBodyRequest<ExpressRequest>,
     @Res() res: Response,
-    @Headers('X-Signature-V2') signature: string,
-    @Headers('X-Timestamp') timestamp: string,
   ) {
     try {
+      const signature = (req.headers['x-signature-v2'] || req.headers['x-signature']) as string;
+      const timestamp = req.headers['x-timestamp'] as string;
+      const destinationId = req.headers['x-destination-id'] || req.headers['destination-id'];
+
       this.logger.log('--- 🚀 NUEVO WEBHOOK ENTRANTE DE DIDIT ---');
-      this.logger.log(`Headers -> Signature: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}`);
+      this.logger.log(`Headers -> Signature: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}, Destination: ${destinationId || 'FALTA'}`);
       
       if (!signature || !timestamp) {
         this.logger.warn('Missing Didit headers');
@@ -99,7 +101,7 @@ export class KycController {
       if (error instanceof UnauthorizedException) {
         return res.status(401).send('Unauthorized');
       }
-      this.logger.error('Error handling webhook', error.stack);
+      this.logger.error('Error handling webhook', error);
       return res.status(500).send('Internal Server Error');
     }
   }
