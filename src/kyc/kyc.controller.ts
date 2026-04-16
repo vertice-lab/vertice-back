@@ -25,7 +25,7 @@ import { ListUsersQueryDto } from './dto/get-list-users.dto';
 export class KycController {
   private readonly logger = new Logger(KycController.name);
 
-  constructor(private readonly kycService: KycService) {}
+  constructor(private readonly kycService: KycService) { }
 
   @Post('session')
   @RoleProtected(ValidRoles.client)
@@ -60,7 +60,7 @@ export class KycController {
     try {
       this.logger.log('--- 🚀 NUEVO WEBHOOK ENTRANTE DE DIDIT ---');
       this.logger.log(`Headers -> Signature-V2: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}`);
-      
+
       if (!signature) {
         this.logger.warn('Missing Didit signature header');
         throw new UnauthorizedException('Missing headers');
@@ -74,10 +74,9 @@ export class KycController {
       }
 
       const payload = JSON.parse(rawBody.toString('utf8'));
-      
+
       this.logger.log(`📦 PAYLOAD ENTRANTE:\n${JSON.stringify(payload, null, 2)}`);
 
-      // Pasar directamente los raw bytes (Buffer) y usar el Método V2 para máxima seguridad y fiabilidad
       const isValid = this.kycService.validateSignature(
         rawBody,
         signature,
@@ -88,14 +87,12 @@ export class KycController {
         this.logger.error('Invalid signature for webhook from Didit');
         throw new UnauthorizedException('Invalid signature');
       }
-      
-      // Importante: Procesar asíncronamente si toma mucho tiempo, o enviar la respuesta 200 de inmediato
-      // ya que Didit puede hacer retries si la conexión tarda.
+
+
       this.kycService.handleDiditWebhook(payload).catch((err) => {
         this.logger.error('Error in async webhook processing', err);
       });
 
-      // Retornar código 200 a Didit rápidamente para confirmar la recepción
       return res.status(200).send('Webhook received');
     } catch (error) {
       if (error instanceof UnauthorizedException) {

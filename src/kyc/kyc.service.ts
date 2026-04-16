@@ -59,7 +59,6 @@ export class KycService {
       return false;
     }
 
-    // Comprobar la frescura del timestamp (si lo envían)
     if (timestampStr) {
       const timestamp = parseInt(timestampStr, 10);
       const now = Math.floor(Date.now() / 1000);
@@ -69,7 +68,6 @@ export class KycService {
       }
     }
 
-    // Calcular hash de los bytes directos con el método V2 (Agnóstico del Formato)
     const expectedHash = crypto
       .createHmac('sha256', this.WEBHOOK_SECRET)
       .update(rawBody)
@@ -77,7 +75,6 @@ export class KycService {
 
     this.logger.log(`🔍 Firma calculada (V2): ${expectedHash} | 🔑 Firma de Didit (V2): ${signatureGiven}`);
 
-    // Usar timingSafeEqual para evitar ataques de timing
     try {
       const expectedBuffer = Buffer.from(expectedHash, 'hex');
       const givenBuffer = Buffer.from(signatureGiven, 'hex');
@@ -91,10 +88,7 @@ export class KycService {
     }
   }
 
-  /**
-   * Mapea el status que envía Didit al enum KycStatus de Prisma.
-   * Didit envía: 'Approved', 'Declined', 'Abandoned', 'In Progress', 'In Review', 'Not Started'
-   */
+
   private mapDiditStatus(diditStatus: string): KycStatus {
     const normalized = diditStatus?.toLowerCase().replace(/\s+/g, '_');
     const statusMap: Record<string, KycStatus> = {

@@ -680,6 +680,20 @@ export class TicketService {
   async finalizeTicket(ticketNumber: string, assessorId: string) {
     const ticket = await this.prisma.ticket.findUnique({
       where: { ticketNumber },
+      include: {
+        chat: {
+          include: {
+            messages: {
+              where: {
+                senderId: assessorId,
+                fileUrl: { not: null },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
     });
 
     if (!ticket) {
@@ -700,7 +714,14 @@ export class TicketService {
       );
     }
 
-    if (ticket.receiptImage === null) {
+    let currentReceiptImage = ticket.receiptImage;
+
+    // Si aún no tiene receiptImage, buscar la última imagen que haya enviado el asesor al chat
+    if (!currentReceiptImage && ticket.chat && ticket.chat.messages.length > 0) {
+      currentReceiptImage = ticket.chat.messages[0].fileUrl;
+    }
+
+    if (!currentReceiptImage) {
       throw new BadRequestException(
         'No puedes finalizar el ticket sin subir la foto del comprobante de pago',
       );
@@ -711,6 +732,9 @@ export class TicketService {
         where: { ticketNumber },
         data: {
           status: TicketStatus.SUCCESS,
+          ...(ticket.receiptImage !== currentReceiptImage && {
+            receiptImage: currentReceiptImage,
+          }),
         },
       });
 
