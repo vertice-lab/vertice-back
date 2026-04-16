@@ -73,6 +73,8 @@ export class KycService {
     const { session_id, status, created_at } = payload;
     const signatureData = `${session_id}|${status}|${created_at}`;
 
+    this.logger.log(`🔍 Signature Data a encriptar: "${signatureData}"`);
+
     const expectedHash = crypto
       .createHmac('sha256', this.WEBHOOK_SECRET)
       .update(signatureData)

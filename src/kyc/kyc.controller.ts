@@ -75,6 +75,8 @@ export class KycController {
 
       // Parseamos el JSON para usar el método Simple Signature (Recomendado)
       const payload = JSON.parse(rawBody.toString('utf8'));
+      
+      this.logger.log(`📦 PAYLOAD ENTRANTE:\n${JSON.stringify(payload, null, 2)}`);
 
       const isValid = this.kycService.validateSignature(
         payload,
