@@ -46,28 +46,34 @@ export class KycService {
 
 
   public validateSignature(
-    payload: any,
+    rawBody: Buffer,
     signatureGiven: string,
+    timestampStr: string,
   ): boolean {
     if (!this.WEBHOOK_SECRET) {
       this.logger.error('DIDIT_WEBHOOK_SECRET is not configured in .env');
       throw new InternalServerErrorException('Webhook secret not configured');
     }
 
-    if (!payload || !signatureGiven) {
+    if (!rawBody || !signatureGiven || !timestampStr) {
       return false;
     }
 
-    const { session_id, status, created_at } = payload;
-    const signatureData = `${session_id}|${status}|${created_at}`;
+    // Comprobar la frescura del timestamp (5 minutos máximo)
+    const timestamp = parseInt(timestampStr, 10);
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - timestamp) > 300) {
+      this.logger.warn(`Webhook timestamp is too old or in the future: ${timestamp}`);
+      return false;
+    }
 
     // Calcular nuestro hash esperado
     const expectedHash = crypto
       .createHmac('sha256', this.WEBHOOK_SECRET)
-      .update(signatureData)
+      .update(rawBody)
       .digest('hex');
 
-    this.logger.log(`🔍 Firma Simple calculada: ${expectedHash} | 🔑 Firma de Didit: ${signatureGiven}`);
+    this.logger.log(`🔍 Firma calculada: ${expectedHash} | 🔑 Firma de Didit: ${signatureGiven}`);
 
     // Usar timingSafeEqual para evitar ataques de timing
     try {
@@ -127,7 +133,7 @@ export class KycService {
       if (decision) {
         this.logger.log(`Decision received for session: ${JSON.stringify(decision)}`);
       }
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(`Error updating user for session ${session_id}`, error.stack);
     }
   }
@@ -163,7 +169,7 @@ export class KycService {
 
       this.logger.log(`Didit session created and linked to user ${userId}`);
       return data;
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error('Error creating Didit session', error?.response?.data || error.message);
       throw new InternalServerErrorException(
         'Failed to create Didit session',
@@ -213,9 +219,8 @@ export class KycService {
       );
       this.logger.log('Didit users list retrieved successfully');
       return data
-    } catch (error: any) {
-      this.logger.error('Error retrieving Didit users list', error.stack);
-      this.logger.error('Error', error?.response?.data || error.message);
+    } catch (error) {
+      this.logger.error('Error retrieving Didit users list', error.stack); this.logger.error('Error', error?.response?.data || error.message);
       throw new InternalServerErrorException(
         'Failed to retrieve Didit users list',
         error?.response?.data || error.message,
