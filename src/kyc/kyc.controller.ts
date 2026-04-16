@@ -56,38 +56,34 @@ export class KycController {
     @Res() res: Response,
   ) {
     try {
-      const signature = (req.headers['x-signature-v2'] || req.headers['x-signature']) as string;
-      const timestamp = req.headers['x-timestamp'] as string;
+      // Usar la firma Simple (más robusta frente a modificaciones JSON)
+      const signature = req.headers['x-signature-simple'] as string;
       const destinationId = req.headers['x-destination-id'] || req.headers['destination-id'];
 
       this.logger.log('--- 🚀 NUEVO WEBHOOK ENTRANTE DE DIDIT ---');
-      this.logger.log(`Headers -> Signature: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}, Destination: ${destinationId || 'FALTA'}`);
+      this.logger.log(`Headers -> Signature Simple: ${signature || 'FALTA'}, Destination: ${destinationId || 'FALTA'}`);
       
-      if (!signature || !timestamp) {
-        this.logger.warn('Missing Didit headers');
-        throw new UnauthorizedException('Missing headers');
+      if (!signature) {
+        this.logger.warn('Missing Didit X-Signature-Simple header');
+        throw new UnauthorizedException('Missing signature');
       }
 
-      const rawBody = req.rawBody;
-
-      if (!rawBody) {
-        this.logger.error('Raw body is not enabled in NestJS app configuration. Cannot verify signature.');
-        throw new UnauthorizedException('Invalid payload');
-      }
+      // Con X-Signature-Simple ya no necesitamos req.rawBody obligatoriamente,
+      // pero igual lo sacamos para procesar el payload
+      const rawBody = req.rawBody || req.body;
+      const payload = Buffer.isBuffer(rawBody) ? JSON.parse(rawBody.toString('utf8')) : req.body;
 
       const isValid = this.kycService.validateSignature(
-        rawBody,
+        payload,
         signature,
-        timestamp,
       );
 
       if (!isValid) {
-        this.logger.error('Invalid signature for webhook from Didit');
+        this.logger.error('Invalid simple signature for webhook from Didit');
         throw new UnauthorizedException('Invalid signature');
       }
 
-      // Si la firma es válida, parseamos el JSON original
-      const payload = JSON.parse(rawBody.toString('utf8'));
+      // Si la firma es válida:
       
       // Importante: Procesar asíncronamente si toma mucho tiempo, o enviar la respuesta 200 de inmediato
       // ya que Didit puede hacer retries si la conexión tarda.

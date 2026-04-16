@@ -46,34 +46,28 @@ export class KycService {
 
 
   public validateSignature(
-    rawBody: Buffer,
+    payload: any,
     signatureGiven: string,
-    timestampStr: string,
   ): boolean {
     if (!this.WEBHOOK_SECRET) {
       this.logger.error('DIDIT_WEBHOOK_SECRET is not configured in .env');
       throw new InternalServerErrorException('Webhook secret not configured');
     }
 
-    if (!rawBody || !signatureGiven || !timestampStr) {
+    if (!payload || !signatureGiven) {
       return false;
     }
 
-    // Comprobar la frescura del timestamp (5 minutos máximo)
-    const timestamp = parseInt(timestampStr, 10);
-    const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - timestamp) > 300) {
-      this.logger.warn(`Webhook timestamp is too old or in the future: ${timestamp}`);
-      return false;
-    }
+    const { session_id, status, created_at } = payload;
+    const signatureData = `${session_id}|${status}|${created_at}`;
 
     // Calcular nuestro hash esperado
     const expectedHash = crypto
       .createHmac('sha256', this.WEBHOOK_SECRET)
-      .update(rawBody)
+      .update(signatureData)
       .digest('hex');
 
-    this.logger.log(`🔍 Firma calculada: ${expectedHash} | 🔑 Firma de Didit: ${signatureGiven}`);
+    this.logger.log(`🔍 Firma Simple calculada: ${expectedHash} | 🔑 Firma de Didit: ${signatureGiven}`);
 
     // Usar timingSafeEqual para evitar ataques de timing
     try {
