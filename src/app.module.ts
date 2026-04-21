@@ -21,6 +21,7 @@ import { FilesModule } from './files/files.module';
 import { TeamModule } from './team/team.module';
 import { ReviewModule } from './review/review.module';
 import { KycModule } from './kyc/kyc.module';
+import { AsessorModule } from './assessor/assessor.module';
 
 @Module({
   imports: [
@@ -74,6 +75,8 @@ import { KycModule } from './kyc/kyc.module';
     ReviewModule,
 
     KycModule,
+
+    AsessorModule,
   ],
   controllers: [],
   providers: [

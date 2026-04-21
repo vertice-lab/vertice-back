@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -75,7 +76,7 @@ export class AuthService {
       ]);
 
       return { ok: true, message: 'Email enviado exitosamente' };
-    } catch (error) {
+    } catch (error: any) {
       throw new InternalServerErrorException(`Error: ${error.message}`);
     }
   }
@@ -122,7 +123,7 @@ export class AuthService {
       await this.emailService.sendOtpEmail(tempRegister.email, newOtp);
 
       return { ok: true, message: 'Código de verificación enviado' };
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -204,7 +205,7 @@ export class AuthService {
             },
           },
         },
-        select:{
+        select: {
           id: true,
           name: true,
           lastName: true,
@@ -222,7 +223,6 @@ export class AuthService {
         user,
       };
     } catch (error) {
-      console.log(error.message);
       if (
         error instanceof NotFoundException ||
         error instanceof UnauthorizedException ||
@@ -344,11 +344,16 @@ export class AuthService {
           id: true,
           email: true,
           password: true,
+          active: true,
         },
       });
 
       if (!user) {
         throw new NotFoundException('Usuario o contraseña incorrectos');
+      }
+
+      if (!user.active) {
+        throw new ForbiddenException('ACCOUNT_BLOCKED');
       }
 
       const credentials = await argon2.verify(user.password, password);
@@ -372,7 +377,8 @@ export class AuthService {
     } catch (error) {
       if (
         error instanceof NotFoundException ||
-        error instanceof UnauthorizedException
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException
       ) {
         throw error;
       }
@@ -408,7 +414,7 @@ export class AuthService {
       await this.emailService.sendEmailChangePassword(user.email, newToken);
 
       return { ok: true, message: 'Revise su bandeja de entrada' };
-    } catch (error) {
+    } catch (error:any) {
       if (
         error instanceof NotFoundException ||
         error instanceof UnauthorizedException
@@ -451,7 +457,7 @@ export class AuthService {
         ok: true,
         msg: 'Contraseña actualizada',
       };
-    } catch (error) {
+    } catch (error: any) {
       console.log(error.message);
       if (
         error instanceof NotFoundException ||
@@ -738,7 +744,7 @@ export class AuthService {
       await this.emailService.sendOtpForgotPasswordEmail(user.email, newOtp);
 
       return { ok: true, message: 'Código enviado a tu correo' };
-    } catch (error) {
+    } catch (error: any) {
       if (
         error instanceof NotFoundException ||
         error instanceof UnauthorizedException

@@ -111,11 +111,7 @@ export class ChatService {
 
     if (!ticket) throw new NotFoundException('Ticket no encontrado');
     if (!user) throw new UnauthorizedException('Usuario no válido');
-    
-    const isAdminOrManager = user.role.name === 'admin' || user.role.name === 'manager';
-    if (!isAdminOrManager && ticket.userId !== userId && ticket.assessorId !== userId) {
-      throw new UnauthorizedException('No tienes permiso para leer este ticket');
-    }
+  
 
     if (!ticket.chat) return [];
 

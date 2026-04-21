@@ -19,6 +19,7 @@ import {
   ValidRoles,
 } from 'src/auth/decorators/role-protected/role-protected.decorator';
 import { RolesGuard } from 'src/auth/guards/roles/roles.guard';
+import { KycGuard } from 'src/auth/guards/kyc/kyc.guard';
 
 @Controller('bank-account')
 export class BankAccountController {
@@ -26,7 +27,7 @@ export class BankAccountController {
 
   @Post('create')
   @RoleProtected(ValidRoles.client)
-  @UseGuards(AuthGuard, RolesGuard)
+  @UseGuards(AuthGuard, RolesGuard, KycGuard)
   createBankAccount(
     @GetUser() user: UserAuth,
     @Body() createBankAccountDto: CreateBankAccountDto,

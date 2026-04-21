@@ -16,7 +16,7 @@ import {
   UserResponseDto,
 } from '../../dto';
 import * as argon2 from 'argon2';
-import type { Prisma } from 'generated/prisma/client';
+import { KycStatus, type Prisma } from 'generated/prisma/client';
 import { buildPaginationMeta } from 'src/common/helpers/pagination.helper';
 import { PaginatedResponse } from 'src/common/interfaces/paginated-response.interface';
 import { Roles } from 'src/auth/interfaces/enums/roles';
@@ -195,9 +195,8 @@ export class UserService {
   async findAll(
     query: GetUsersQueryDto,
   ): Promise<{ ok: true } & PaginatedResponse<UserResponseDto>> {
-    // PaginationQueryDto valida `page` como 1-index (min 1)
     const { page = 1, limit = 10, search, roleId, active, verified } = query;
-    const pageIndex = page - 1; // 0-index para skip y metadata
+    const pageIndex = page - 1; 
 
     const where: Prisma.UserWhereInput = {
       role: { name: { not: Roles.client } },
@@ -372,6 +371,18 @@ export class UserService {
 
     if (updateProfileDto.email && updateProfileDto.email !== user.email) {
       throw new BadRequestException('El correo no se puede actualizar');
+    }
+
+    if (user.kycStatus === KycStatus.APPROVED) {
+      const {
+        name: _n,
+        lastName: _ln,
+        dateBirth: _db,
+        documentType: _dt,
+        documentNumber: _dn,
+        ...safeDto
+      } = updateProfileDto;
+      updateProfileDto = safeDto as UpdateProfileDto;
     }
 
     const {

@@ -35,10 +35,10 @@ export class FilesController {
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
-          fileType: /(jpg|jpeg|png|webp|pdf)$/,
+          fileType: /(jpg|jpeg|png|webp)$/,
         })
         .addMaxSizeValidator({
-          maxSize: 5 * 1024 * 1024, // 5 MB
+          maxSize: 5 * 1024 * 1024, 
         })
         .build({
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,

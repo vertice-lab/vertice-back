@@ -12,6 +12,8 @@ import {
   Query,
   Get,
   Request,
+  Param,
+  Patch,
 } from '@nestjs/common';
 import { Request as ExpressRequest, Response } from 'express';
 import { KycService } from './kyc.service';
@@ -20,6 +22,7 @@ import { RoleProtected, ValidRoles } from 'src/auth/decorators/role-protected/ro
 import { AuthGuard } from 'src/auth/guards/auth/auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles/roles.guard';
 import { ListUsersQueryDto } from './dto/get-list-users.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
 
 @Controller('kyc')
 export class KycController {
@@ -58,24 +61,23 @@ export class KycController {
     @Headers('x-timestamp') timestamp: string,
   ) {
     try {
-      this.logger.log('--- 🚀 NUEVO WEBHOOK ENTRANTE DE DIDIT ---');
       this.logger.log(`Headers -> Signature-V2: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}`);
 
       if (!signature) {
-        this.logger.warn('Missing Didit signature header');
-        throw new UnauthorizedException('Missing headers');
+        this.logger.warn('Cabeceras de Didit no encontradas');
+        throw new UnauthorizedException('Cabeceras de Didit no encontradas');
       }
 
       const rawBody = req.rawBody;
 
       if (!rawBody) {
-        this.logger.error('Raw body is not enabled in NestJS app configuration. Cannot verify signature.');
-        throw new UnauthorizedException('Invalid payload');
+        this.logger.error('Raw body no habilitado en la configuración de la aplicación NestJS. No se puede verificar la firma.');
+        throw new UnauthorizedException('Payload inválido');
       }
 
       const payload = JSON.parse(rawBody.toString('utf8'));
 
-      this.logger.log(`📦 PAYLOAD ENTRANTE:\n${JSON.stringify(payload, null, 2)}`);
+      // this.logger.log(`📦 PAYLOAD ENTRANTE:\n${JSON.stringify(payload, null, 2)}`);
 
       const isValid = this.kycService.validateSignature(
         rawBody,
@@ -101,5 +103,22 @@ export class KycController {
       this.logger.error('Error handling webhook', error);
       return res.status(500).send('Internal Server Error');
     }
+  }
+
+  @Get('session/:sessionId/decision')
+  @RoleProtected(ValidRoles.client, ValidRoles.admin)
+  @UseGuards(AuthGuard, RolesGuard)
+  async getSessionDecision(@Request() req, @Param('sessionId') sessionId: string) {
+    // Añadimos '?' para evitar el cuelgue si req.user no existe al probar sin Guards
+    const userId = req.user?.sub || 'usuario-de-prueba';
+
+    return this.kycService.getRetrieveSessionDecision(sessionId, userId);
+  }
+
+  @Patch('session/:sessionId/update-status')
+  @RoleProtected(ValidRoles.admin)
+  @UseGuards(AuthGuard, RolesGuard)
+  async updateStatus(@Param('sessionId') sessionId: string, @Body() payload: UpdateStatusDto) {
+    return this.kycService.updateStatus(sessionId, payload);
   }
 }

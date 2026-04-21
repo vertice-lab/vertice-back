@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,6 +10,8 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { UserAuth } from 'src/auth/interfaces/user/user-auth';
 import { EncryptService } from 'src/auth/services/encrypt/encrypt.service';
+import { PrismaClientService } from 'src/prisma-client/prisma-client.service';
+
 
 interface RequestWithUser extends Request {
   user: UserAuth;
@@ -20,7 +23,8 @@ export class AuthGuard implements CanActivate {
     private jwtService: JwtService,
     private configService: ConfigService,
     private encryptService: EncryptService,
-  ) {}
+    private prisma: PrismaClientService,
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
@@ -42,8 +46,21 @@ export class AuthGuard implements CanActivate {
 
       const decryptedUserId = await this.encryptService.decrypt(payload.sub);
 
+      const userRecord = await this.prisma.user.findUnique({
+        where: { id: decryptedUserId },
+        select: { active: true },
+      });
+
+      if (!userRecord || !userRecord.active) {
+        throw new ForbiddenException('ACCOUNT_BLOCKED');
+      }
+
       request.user = { ...payload, sub: decryptedUserId };
-    } catch {
+
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       throw new UnauthorizedException();
     }
     return true;

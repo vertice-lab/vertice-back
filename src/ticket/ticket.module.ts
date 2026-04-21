@@ -7,6 +7,7 @@ import { UserService } from 'src/user/services/user/user.service';
 import { ChatModule } from 'src/chat/chat.module';
 import { TicketReceiptService } from './ticket-receipt.service';
 import { TicketReceiptController } from './ticket-receipt.controller';
+import { KycGuard } from 'src/auth/guards/kyc/kyc.guard';
 
 @Module({
   imports: [AuthModule, ChatModule],
@@ -16,6 +17,7 @@ import { TicketReceiptController } from './ticket-receipt.controller';
     TicketReceiptService,
     PrismaClientService,
     UserService,
+    KycGuard,
   ],
 })
 export class TicketModule {}

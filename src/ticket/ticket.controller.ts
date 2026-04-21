@@ -24,6 +24,7 @@ import { GetUser } from 'src/auth/decorators/user/user.decorator';
 import { UserAuth } from 'src/auth/interfaces/user/user-auth';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { TicketStatus } from './enums/ticket-status.enum';
+import { KycGuard } from 'src/auth/guards/kyc/kyc.guard';
 
 @Controller('ticket')
 export class TicketController {
@@ -31,7 +32,7 @@ export class TicketController {
 
   @Post('create')
   @RoleProtected(ValidRoles.client)
-  @UseGuards(AuthGuard, RolesGuard)
+  @UseGuards(AuthGuard, RolesGuard, KycGuard)
   create(@Body() createTicketDto: CreateTicketDto, @GetUser() user: UserAuth) {
     return this.ticketService.create(createTicketDto, user.sub);
   }

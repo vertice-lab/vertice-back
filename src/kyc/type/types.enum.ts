@@ -1,0 +1,8 @@
+
+export enum FeatureType {
+    ID_VERIFICATION = "ID_VERIFICATION",
+    LIVENESS = "LIVENESS",
+    FACE_MATCH = "FACE_MATCH",
+    IP_ANALYSIS = "IP_ANALYSIS",
+
+}
