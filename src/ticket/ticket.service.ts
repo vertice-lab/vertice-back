@@ -245,6 +245,7 @@ export class TicketService {
                   bankAccount.user.name ||
                   'Titular',
                 lastName: bankAccount.user.lastName || '',
+                identificationType: account.documentType,
                 identificationNumber: selfIdentificationNumber,
                 phone: bankAccount.phoneNumber || 'N/A',
                 email: selfEmail,
@@ -283,6 +284,7 @@ export class TicketService {
             create: {
               firstName: account.thirdPartyName!,
               lastName: '',
+              identificationType: account.documentType,
               identificationNumber: account.thirdPartyId!,
               phone: account.thirdPartyPhone || '',
               email:
@@ -359,7 +361,7 @@ export class TicketService {
           ticketId: ticket.id,
         };
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en transacción:', error);
       if (error instanceof BadRequestException) throw error;
       if (error instanceof NotFoundException) throw error;
@@ -838,7 +840,7 @@ export class TicketService {
             try {
               decryptedRecipient[field] =
                 await this.encryptService.decrypt(encryptedValue);
-            } catch (error) {
+            } catch (error: any) {
               console.error(
                 `Error al desencriptar campo ${field} en ticket ${ticket.id}:`,
                 error.message,

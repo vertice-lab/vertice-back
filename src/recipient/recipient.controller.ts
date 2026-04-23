@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { RecipientService } from './recipient.service';
 import { CreateRecipientDto } from './dto/create-recipient.dto';
@@ -32,13 +33,18 @@ export class RecipientController {
   }
 
   @Get()
-  findAll() {
-    return this.recipientService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNumber = page ? parseInt(page, 10) : 1;
+    const limitNumber = limit ? parseInt(limit, 10) : 10;
+    return this.recipientService.findAll(pageNumber, limitNumber);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.recipientService.findOne(+id);
+    return this.recipientService.findOne(id);
   }
 
   @Patch(':id')
@@ -46,11 +52,11 @@ export class RecipientController {
     @Param('id') id: string,
     @Body() updateRecipientDto: UpdateRecipientDto,
   ) {
-    return this.recipientService.update(+id, updateRecipientDto);
+    return this.recipientService.update(id, updateRecipientDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.recipientService.remove(+id);
+    return this.recipientService.remove(id);
   }
 }

@@ -98,8 +98,8 @@ class AccountDto {
   thirdPartyAddressOrDetails?: string;
 
   @IsOptional()
-  @IsEnum(['DNI', 'Cédula', 'Pasaporte'])
-  documentType?: 'DNI' | 'Cédula' | 'Pasaporte';
+  @IsEnum(['DNI', 'CEDULA', 'PASSPORT'])
+  documentType?: 'DNI' | 'CEDULA' | 'PASSPORT';
 
   @IsOptional()
   @IsString()

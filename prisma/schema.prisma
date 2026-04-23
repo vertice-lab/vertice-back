@@ -116,14 +116,15 @@ model Role {
 }
 
 model Recipient {
-  id                   String         @id @default(uuid())
+  id                   String             @id @default(uuid())
   firstName            String
   lastName             String
-  email                String         @unique
+  email                String             @unique
   phone                String
-  identificationNumber String         @unique
-  updatedAt            DateTime       @updatedAt
-  createdAt            DateTime       @default(now())
+  identificationType   IdentificationType @default(CEDULA)
+  identificationNumber String             @unique
+  updatedAt            DateTime           @updatedAt
+  createdAt            DateTime           @default(now())
   paymentDetail        PaymentDetail?
   tickets              Ticket[]
 }
@@ -421,4 +422,10 @@ enum AssessorStatus {
   BUSY
   BREAK
   OFFLINE
+}
+
+enum IdentificationType {
+  DNI
+  CEDULA
+  PASSPORT
 }
