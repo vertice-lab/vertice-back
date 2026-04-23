@@ -11,10 +11,11 @@ export enum IdentificationType {
 export enum PaymentMethodType {
   TRANSFER = 'TRANSFER',
   CASH = 'CASH',
+  PAGO_MOVIL = 'PAGO_MOVIL',
+  NEQUI = 'NEQUI',
   ZELLE = 'ZELLE',
+  WISE = 'WISE',
   PAYPAL = 'PAYPAL',
   BINANCE = 'BINANCE',
-  CRYPTO = 'CRYPTO',
-  PREPAID_CARD = 'PREPAID_CARD',
-  OTHER = 'OTHER',
+  SEPA = 'SEPA',
 }

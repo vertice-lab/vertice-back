@@ -125,7 +125,7 @@ model Recipient {
   identificationNumber String             @unique
   updatedAt            DateTime           @updatedAt
   createdAt            DateTime           @default(now())
-  paymentDetail        PaymentDetail?
+  paymentDetails       PaymentDetail[]
   tickets              Ticket[]
 }
 
@@ -139,13 +139,15 @@ model PaymentDetail {
   state            String?
   updatedAt        DateTime          @updatedAt
   createdAt        DateTime          @default(now())
-  recipientId      String            @unique
+  recipientId      String
   accountVerified  Boolean?
   addressOrDetails String?
   aliasOrReference String?
   email            String?
   phone            String?
   recipient        Recipient         @relation(fields: [recipientId], references: [id])
+
+  @@index([recipientId])
 }
 
 model CurrencyRate {
@@ -378,7 +380,13 @@ enum KycStatus {
 enum PaymentMethodType {
   TRANSFER
   CASH
-  PREPAID_CARD
+  PAGO_MOVIL
+  NEQUI
+  ZELLE
+  WISE
+  PAYPAL
+  BINANCE
+  SEPA
 }
 
 enum SenderPaymentMethodType {

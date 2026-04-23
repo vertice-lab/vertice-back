@@ -253,58 +253,77 @@ export class TicketService {
             });
           recipientId = selfRecipient.id;
         } else {
-          // --- TERCEROS ---
-          const thirdPartyRecipient = await tx.recipient.upsert({
+          // --- TERCEROS (1:N PaymentDetail) ---
+          const existingRecipient = await tx.recipient.findFirst({
             where: { identificationNumber: account.thirdPartyId! },
-            update: {
-              firstName: account.thirdPartyName!,
-              phone: account.thirdPartyPhone || '',
-              paymentDetail: {
-                upsert: {
-                  create: {
-                    paymentMethod: 'TRANSFER',
-                    bank: account.institutionName,
-                    accountNumber:
-                      account.thirdPartyAccountNumberOrCode ||
-                      account.thirdPartyPhone,
-                    accountType: account.typeInstitution,
-                    aliasOrReference: account.thirdPartyAlias,
-                  },
-                  update: {
-                    bank: account.institutionName,
-                    accountNumber:
-                      account.thirdPartyAccountNumberOrCode ||
-                      account.thirdPartyPhone,
-                    accountType: account.typeInstitution,
-                    aliasOrReference: account.thirdPartyAlias,
-                  },
-                },
-              },
-            },
-            create: {
-              firstName: account.thirdPartyName!,
-              lastName: '',
-              identificationType: account.documentType,
-              identificationNumber: account.thirdPartyId!,
-              phone: account.thirdPartyPhone || '',
-              email:
-                account.thirdPartyEmail ||
-                `${account.thirdPartyId}@noemail.com`,
-              paymentDetail: {
-                create: {
-                  paymentMethod: 'TRANSFER',
-                  bank: account.institutionName,
-                  accountNumber:
-                    account.thirdPartyAccountNumberOrCode ||
-                    account.thirdPartyPhone,
-                  accountType: account.typeInstitution,
-                  aliasOrReference: account.thirdPartyAlias,
-                },
-              },
-            },
+            include: { paymentDetails: true },
           });
 
-          recipientId = thirdPartyRecipient.id;
+          let thirdPartyRecipientId: string;
+
+          const paymentDetailData = {
+            paymentMethod: 'TRANSFER' as any,
+            bank: account.institutionName,
+            accountNumber:
+              account.thirdPartyAccountNumberOrCode ||
+              account.thirdPartyPhone,
+            accountType: account.typeInstitution,
+            aliasOrReference: account.thirdPartyAlias,
+          };
+
+          if (existingRecipient) {
+            // Check if a compatible PaymentDetail already exists
+            const existingPD = existingRecipient.paymentDetails.find(
+              (pd) =>
+                pd.bank === account.institutionName &&
+                pd.accountType === account.typeInstitution,
+            );
+
+            if (existingPD) {
+              await tx.paymentDetail.update({
+                where: { id: existingPD.id },
+                data: paymentDetailData,
+              });
+            } else {
+              await tx.paymentDetail.create({
+                data: {
+                  ...paymentDetailData,
+                  recipientId: existingRecipient.id,
+                },
+              });
+            }
+
+            // Update recipient personal data
+            await tx.recipient.update({
+              where: { id: existingRecipient.id },
+              data: {
+                firstName: account.thirdPartyName!,
+                phone: account.thirdPartyPhone || '',
+              },
+            });
+
+            thirdPartyRecipientId = existingRecipient.id;
+          } else {
+            // Create new recipient with PaymentDetail
+            const newRecipient = await tx.recipient.create({
+              data: {
+                firstName: account.thirdPartyName!,
+                lastName: '',
+                identificationType: account.documentType,
+                identificationNumber: account.thirdPartyId!,
+                phone: account.thirdPartyPhone || '',
+                email:
+                  account.thirdPartyEmail ||
+                  `${account.thirdPartyId}@noemail.com`,
+                paymentDetails: {
+                  create: paymentDetailData,
+                },
+              },
+            });
+            thirdPartyRecipientId = newRecipient.id;
+          }
+
+          recipientId = thirdPartyRecipientId;
         }
 
         // 5. Crear Ticket Final
@@ -425,7 +444,7 @@ export class TicketService {
               identificationNumber: true,
               phone: true,
               email: true,
-              paymentDetail: true,
+              paymentDetails: true,
             },
           },
           assessor: {

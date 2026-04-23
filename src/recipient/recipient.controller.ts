@@ -47,6 +47,14 @@ export class RecipientController {
     return this.recipientService.findOne(id);
   }
 
+  @Get(':id/payment-details')
+  findPaymentDetails(
+    @Param('id') id: string,
+    @Query('toCurrency') toCurrency?: string,
+  ) {
+    return this.recipientService.findPaymentDetailsByRecipient(id, toCurrency);
+  }
+
   @Patch(':id')
   update(
     @Param('id') id: string,

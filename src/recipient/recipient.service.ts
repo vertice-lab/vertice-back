@@ -36,13 +36,13 @@ export class RecipientService {
           ...(recipientData as any),
           lastName: recipientData.lastName || '',
           email: recipientData.email || `${recipientData.identificationNumber}@noemail.com`,
-          ...(paymentDetails && {
-            paymentDetail: {
+          ...(paymentDetails && paymentDetails.length > 0 && {
+            paymentDetails: {
               create: paymentDetails as any,
             },
           }),
         },
-        include: { paymentDetail: true },
+        include: { paymentDetails: true },
       });
 
       return {
@@ -67,7 +67,7 @@ export class RecipientService {
         this.prisma.recipient.findMany({
           skip,
           take: limit,
-          include: { paymentDetail: true },
+          include: { paymentDetails: true },
           orderBy: { createdAt: 'desc' },
         })
       ]);
@@ -95,7 +95,7 @@ export class RecipientService {
     try {
       const recipient = await this.prisma.recipient.findUnique({
         where: { id },
-        include: { paymentDetail: true },
+        include: { paymentDetails: true },
       });
 
       if (!recipient) {
@@ -116,25 +116,42 @@ export class RecipientService {
     try {
       const { paymentDetails, ...recipientData } = updateRecipientDto;
 
-      const recipient = await this.prisma.recipient.update({
+      // Update recipient personal data
+      await this.prisma.recipient.update({
         where: { id },
-        data: {
-          ...(recipientData as any),
-          ...(paymentDetails && {
-            paymentDetail: {
-              upsert: {
-                create: paymentDetails as any,
-                update: paymentDetails as any,
+        data: recipientData as any,
+      });
+
+      // Handle payment details: upsert by id or create new
+      if (paymentDetails && paymentDetails.length > 0) {
+        for (const pd of paymentDetails) {
+          const pdAny = pd as any;
+          if (pdAny.id) {
+            // Update existing payment detail
+            await this.prisma.paymentDetail.update({
+              where: { id: pdAny.id },
+              data: pd as any,
+            });
+          } else {
+            // Create new payment detail
+            await this.prisma.paymentDetail.create({
+              data: {
+                ...(pd as any),
+                recipientId: id,
               },
-            },
-          }),
-        },
-        include: { paymentDetail: true },
+            });
+          }
+        }
+      }
+
+      const updatedRecipient = await this.prisma.recipient.findUnique({
+        where: { id },
+        include: { paymentDetails: true },
       });
 
       return {
         ok: true,
-        data: await this.decryptRecipient(recipient),
+        data: await this.decryptRecipient(updatedRecipient),
         msg: 'Destinatario actualizado exitosamente',
       };
     } catch (error: any) {
@@ -145,16 +162,49 @@ export class RecipientService {
     }
   }
 
+  async findPaymentDetailsByRecipient(recipientId: string, toCurrency?: string) {
+    const recipient = await this.prisma.recipient.findUnique({
+      where: { id: recipientId },
+      include: { paymentDetails: true },
+    });
+
+    if (!recipient) {
+      throw new NotFoundException('Destinatario no encontrado');
+    }
+
+    let details = recipient.paymentDetails;
+
+    // Filter by country based on currency if provided
+    if (toCurrency) {
+      const countryForCurrency = this.getCountryByCurrency(toCurrency);
+      if (countryForCurrency) {
+        details = details.filter((pd: any) => pd.country === countryForCurrency);
+      }
+    }
+
+    return { ok: true, data: details };
+  }
+
+  private getCountryByCurrency(currency: string): string | null {
+    const map: Record<string, string> = {
+      'BS': 'Venezuela',
+      'COP': 'Colombia',
+      'ARS': 'Argentina',
+      'CLP': 'Chile',
+      'PEN': 'Perú',
+      'USD': 'Estados Unidos',
+      'EUR': 'Unión Europea',
+      'USDT': 'Cripto',
+    };
+    return map[currency] || null;
+  }
+
   async remove(id: string) {
     try {
-      // paymentDetail is deleted via cascading or we need to delete it manually first?
-      // Let's delete paymentDetail first just in case there's no Cascade delete setup in schema
-      const paymentDetail = await this.prisma.paymentDetail.findUnique({ where: { recipientId: id } });
-      if (paymentDetail) {
-        await this.prisma.paymentDetail.delete({ where: { recipientId: id } });
-      }
+      // Delete all payment details for this recipient
+      await this.prisma.paymentDetail.deleteMany({ where: { recipientId: id } });
 
-      const recipient = await this.prisma.recipient.delete({
+      await this.prisma.recipient.delete({
         where: { id },
       });
 

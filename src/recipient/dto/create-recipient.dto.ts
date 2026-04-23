@@ -71,8 +71,8 @@ export class CreateRecipientDto {
     identificationNumber: string;
 
     @IsOptional()
-    @ValidateNested()
+    @ValidateNested({ each: true })
     @Type(() => CreatePaymentDetailDto)
-    paymentDetails?: CreatePaymentDetailDto;
+    paymentDetails?: CreatePaymentDetailDto[];
 
 }
