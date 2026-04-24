@@ -73,11 +73,11 @@ export class ExchangeRateService {
     'USD → CLP': (_, to) => Number(to.buyRate!),
     'USD → EUR': (from, to) => Number(from.marketRate! / to.sellRate!),
     'USD → PEN': (_, to) => Number(to.buyRate!),
-    'USD → USDT': (_, to) => Number(to.buyRate!),
+    'USD → USDT': (_, to) => Number(to.sellRate!),
 
     //USDT ✅
-    'USDT → USD': (from, _) => Number(from.sellRate!),
-    'USDT → EUR': (from, to) => Number(from.buyRate! / to.buyRate!),
+    'USDT → USD': (from, _) => Number(from.buyRate!),
+    'USDT → EUR': (from, _) => Number(from.buyRate!),
     'USDT → ARS': (from, to) => Number(from.buyRate! * to.buyRate!),
     'USDT → COP': (from, to) => Number(from.buyRate! * to.buyRate!),
     'USDT → BS': (from, to) => Number(from.buyRate! * to.marketRate!),
@@ -104,15 +104,22 @@ export class ExchangeRateService {
   };
 
   private readonly zeroSpreadPairs = new Set([
-    'USD → USDT',
     'USDT → USD',
-    'EUR → USDT',
     'USDT → EUR',
-
+    'USD → COP',
+    
     'USD → BS',
     'EUR → BS',
     'BS → USD',
     'BS → EUR',
+    
+    'ARS → USDT',
+    'CLP → USDT',
+    'BS → USDT',
+    'COP → USDT',
+    'USD → USDT',
+    'EUR → USDT',
+    'PEN → USDT',
   ]);
 
   public generateName(fromCurrency: string, toCurrency: string) {

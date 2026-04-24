@@ -187,49 +187,18 @@ export class CurrencyBaseService {
           const exchangePair = `${currencyRate.fromCurrency} → ${currencyRate.toCurrency}`;
           let newRate: Record<string, number | string> = {};
 
-          switch (exchangePair) {
-            case 'ARS → BS':
-              const arsToBsRate = await this.currencyRateService[
-                'exchangeService'
-              ].calculateArsToBs(exchangePair, newRate);
-              Object.assign(updateData, {
-                buyRate: Number(arsToBsRate.buyRate),
-                sellRate: Number(arsToBsRate.sellRate),
-              });
-              shouldUpdate = true;
-              break;
-            case 'BS → ARS':
-              const bsToArs = await this.currencyRateService[
-                'exchangeService'
-              ].calculateBsToArs(exchangePair, newRate);
-              Object.assign(updateData, {
-                buyRate: Number(bsToArs.buyRate),
-                sellRate: Number(bsToArs.sellRate),
-              });
-              shouldUpdate = true;
-              break;
-            case 'COP → BS':
-              const copToBs = await this.currencyRateService[
-                'exchangeService'
-              ].calculateCopToBs(exchangePair, newRate);
-              Object.assign(updateData, {
-                buyRate: Number(copToBs.buyRate),
-                sellRate: Number(copToBs.sellRate),
-              });
-              shouldUpdate = true;
-              break;
-            case 'BS → COP':
-              const bsToCop = await this.currencyRateService[
-                'exchangeService'
-              ].calculateBsToCop(exchangePair, newRate);
-              Object.assign(updateData, {
-                buyRate: Number(bsToCop.buyRate),
-                sellRate: Number(bsToCop.sellRate),
-              });
-              shouldUpdate = true;
-              break;
-            default:
-              shouldUpdate = false;
+          try {
+            const calculatedRate = await this.currencyRateService[
+              'exchangeService'
+            ].calculateRate(exchangePair, newRate);
+
+            Object.assign(updateData, {
+              buyRate: Number(calculatedRate.buyRate),
+              sellRate: Number(calculatedRate.sellRate),
+            });
+            shouldUpdate = true;
+          } catch (error) {
+            shouldUpdate = false;
           }
 
           if (shouldUpdate) {
