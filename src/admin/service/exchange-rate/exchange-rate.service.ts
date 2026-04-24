@@ -27,7 +27,7 @@ type CalculationFunction = (
 export class ExchangeRateService {
   private readonly logger = new Logger(ExchangeRateService.name);
 
-  constructor(private prisma: PrismaClientService) {}
+  constructor(private prisma: PrismaClientService) { }
 
   private readonly calculationMap: Record<string, CalculationFunction> = {
     //ARS ✅
@@ -77,7 +77,7 @@ export class ExchangeRateService {
 
     //USDT ✅
     'USDT → USD': (from, _) => Number(from.buyRate!),
-    'USDT → EUR': (from, _) => Number(from.buyRate!),
+    'USDT → EUR': (from, to) => Number(from.buyRate! / to.sellRate!),
     'USDT → ARS': (from, to) => Number(from.buyRate! * to.buyRate!),
     'USDT → COP': (from, to) => Number(from.buyRate! * to.buyRate!),
     'USDT → BS': (from, to) => Number(from.buyRate! * to.marketRate!),
@@ -103,24 +103,53 @@ export class ExchangeRateService {
     'PEN → USDT': (from, to) => Number(from.sellRate! * to.sellRate!),
   };
 
-  private readonly zeroSpreadPairs = new Set([
-    'USDT → USD',
-    'USDT → EUR',
-    'USD → COP',
-    
-    'USD → BS',
-    'EUR → BS',
-    'BS → USD',
-    'BS → EUR',
-    
-    'ARS → USDT',
-    'CLP → USDT',
-    'BS → USDT',
-    'COP → USDT',
-    'USD → USDT',
-    'EUR → USDT',
-    'PEN → USDT',
+  /** Spread por defecto (%) para pares no listados en spreadOverrides */
+  private readonly DEFAULT_SPREAD = 10;
+
+  /**
+   * Mapa de spread personalizado por par de cambio.
+   * - Clave: nombre del par (e.g. 'USD → BS')
+   * - Valor: porcentaje de spread (0 = sin spread, 5 = 5%, etc.)
+   * - Pares NO listados aquí usan DEFAULT_SPREAD (10%)
+   */
+  private readonly spreadOverrides = new Map<string, number>([
+    // 0% spread
+    ['USDT → USD', 0],
+    ['USDT → EUR', 0],
+    ['USD → COP', 0],
+    ['USD → BS', 0],
+    ['EUR → BS', 0],
+    ['BS → USD', 0],
+    ['BS → EUR', 0],
+    ['ARS → USDT', 0],
+    ['CLP → USDT', 0],
+    ['BS → USDT', 0],
+    ['COP → USDT', 0],
+    ['USD → USDT', 0],
+    ['EUR → USDT', 0],
+    ['PEN → USDT', 0],
+
+    // Ejemplo: pares con spread personalizado
+    ['CLP → BS', 7],
+    ['ARS → BS', 5],
+    ['USD → CLP', 7],
+    ['USD → ARS', 7],
+    ['USD → PEN', 7],
+    ['EUR → COP', 5],
+    ['EUR → PEN', 5],
+    ['PEN → BS', 7],
+
   ]);
+
+  /**
+   * Devuelve el factor de margen para un par dado.
+   * Ej: 10% → 0.90, 5% → 0.95, 0% → 1.00
+   */
+  private getMarginForPair(exchangePair: string): number {
+    const spreadPercent =
+      this.spreadOverrides.get(exchangePair) ?? this.DEFAULT_SPREAD;
+    return 1 - spreadPercent / 100;
+  }
 
   public generateName(fromCurrency: string, toCurrency: string) {
     return `${fromCurrency} → ${toCurrency}`;
@@ -172,12 +201,10 @@ export class ExchangeRateService {
     }
 
     const base = calculateBase(fromBaseRate, toBaseRate);
-    const hasZeroSpread = this.zeroSpreadPairs.has(exchangePair);
+    const MARGIN = this.getMarginForPair(exchangePair);
 
-    const MARGIN = 0.9;
-
-    const buyRate = hasZeroSpread ? base : base * MARGIN;
-    const sellRate = hasZeroSpread ? base : base / MARGIN;
+    const buyRate = base * MARGIN;
+    const sellRate = base / MARGIN;
 
     newRate.fromCurrency = fromCurrency;
     newRate.toCurrency = toCurrency!;
