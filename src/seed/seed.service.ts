@@ -7,7 +7,7 @@ import { offices } from './data/offices';
 
 @Injectable()
 export class SeedService {
-  constructor(private prisma: PrismaClientService) {}
+  constructor(private prisma: PrismaClientService) { }
 
   async runSeed() {
     // Base data (idempotente)
@@ -82,92 +82,7 @@ export class SeedService {
     );
   }
 
-  // private async seedCurrencyRatesFromBaseRates(): Promise<number> {
-  //   const baseRates = await this.prisma.currencyBaseRate.findMany({
-  //     where: { isActive: true },
-  //     select: {
-  //       currency: true,
-  //       name: true,
-  //       buyRate: true,
-  //       sellRate: true,
-  //       marketRate: true,
-  //       dolarBcvRate: true,
-  //       eurBcvRate: true,
-  //     },
-  //   });
 
-  //   const usd = baseRates.find((c) => c.currency === 'USD');
-  //   if (!usd) {
-  //     throw new Error('No existe moneda base USD en CurrencyBaseRate.');
-  //   }
-
-  //   const getUsdToCurBuy = (cur: (typeof baseRates)[number]) =>
-  //     cur.buyRate ?? cur.marketRate ?? 0;
-  //   const getUsdToCurSell = (cur: (typeof baseRates)[number]) =>
-  //     cur.sellRate ?? cur.marketRate ?? cur.buyRate ?? 0;
-
-  //   const pairs = baseRates
-  //     .filter((c) => c.currency !== 'USD')
-  //     .flatMap((cur) => {
-  //       const usdToCurBuy = getUsdToCurBuy(cur);
-  //       const usdToCurSell = getUsdToCurSell(cur);
-
-  //       if (!usdToCurBuy || !usdToCurSell) return [];
-
-  //       const curToUsdBuy = 1 / usdToCurSell;
-  //       const curToUsdSell = 1 / usdToCurBuy;
-
-  //       return [
-  //         {
-  //           fromCurrency: 'USD',
-  //           toCurrency: cur.currency,
-  //           buyRate: usdToCurBuy,
-  //           sellRate: usdToCurSell,
-  //           marketRate: cur.marketRate ?? null,
-  //           dolarBcvRate: cur.dolarBcvRate ?? null,
-  //           eurBcvRate: cur.eurBcvRate ?? null,
-  //           name: `USD → ${cur.currency}`,
-  //           isActive: true,
-  //         },
-  //         {
-  //           fromCurrency: cur.currency,
-  //           toCurrency: 'USD',
-  //           buyRate: curToUsdBuy,
-  //           sellRate: curToUsdSell,
-  //           marketRate: null,
-  //           dolarBcvRate: null,
-  //           eurBcvRate: null,
-  //           name: `${cur.currency} → USD`,
-  //           isActive: true,
-  //         },
-  //       ];
-  //     });
-
-  //   await this.prisma.$transaction(
-  //     pairs.map((p) =>
-  //       this.prisma.currencyRate.upsert({
-  //         where: {
-  //           fromCurrency_toCurrency: {
-  //             fromCurrency: p.fromCurrency,
-  //             toCurrency: p.toCurrency,
-  //           },
-  //         },
-  //         create: p,
-  //         update: {
-  //           buyRate: p.buyRate,
-  //           sellRate: p.sellRate,
-  //           marketRate: p.marketRate,
-  //           dolarBcvRate: p.dolarBcvRate,
-  //           eurBcvRate: p.eurBcvRate,
-  //           name: p.name,
-  //           isActive: p.isActive,
-  //         },
-  //       }),
-  //     ),
-  //   );
-
-  //   return pairs.length;
-  // }
 
   private async seedOffices(): Promise<number> {
     let createdOrUpdated = 0;
@@ -220,17 +135,20 @@ export class SeedService {
       throw new Error('Roles or country not found. Run seed again.');
     }
 
-    // Hash password (same for all test users: "Abcd123$")
-    const hashedPassword = await argon2.hash('Abcd123$');
+    const [hashedAdmin, hashedAssessor, hashedClient] = await Promise.all([
+      argon2.hash(process.env.SECRET_PASSWORD_ADMIN!),
+      argon2.hash(process.env.SECRET_PASSWORD_ASSESSOR!),
+      argon2.hash(process.env.SECRET_PASSWORD_CLIENT!),
+    ]);
 
     // Create admin user
     const adminUser = await this.prisma.user.upsert({
-      where: { email: 'admin@vertice.com' },
+      where: { email: 'jose.rodriguez@verticexchange.com' },
       create: {
-        name: 'Admin',
-        lastName: 'Administrador',
-        email: 'admin@vertice.com',
-        password: hashedPassword,
+        name: 'Jose',
+        lastName: 'Rodriguez',
+        email: 'jose.rodriguez@verticexchange.com',
+        password: hashedAdmin,
         verified: true,
         active: true,
         roleId: adminRole.id,
@@ -245,9 +163,9 @@ export class SeedService {
         },
       },
       update: {
-        name: 'Admin',
-        lastName: 'Administrador',
-        password: hashedPassword,
+        name: 'Jose',
+        lastName: 'Rodriguez',
+        password: hashedAdmin,
         verified: true,
         active: true,
         roleId: adminRole.id,
@@ -273,12 +191,12 @@ export class SeedService {
 
     // Create assessor user
     const assessorUser = await this.prisma.user.upsert({
-      where: { email: 'assessor@vertice.com' },
+      where: { email: 'jesus.user@verticexchange.com' },
       create: {
-        name: 'Asesor',
-        lastName: 'Test',
-        email: 'assessor@vertice.com',
-        password: hashedPassword,
+        name: 'Jesus',
+        lastName: 'User',
+        email: 'jesus.user@verticexchange.com',
+        password: hashedAssessor,
         verified: true,
         active: true,
         roleId: assessorRole.id,
@@ -293,9 +211,9 @@ export class SeedService {
         },
       },
       update: {
-        name: 'Asesor',
-        lastName: 'Test',
-        password: hashedPassword,
+        name: 'Jesus',
+        lastName: 'User',
+        password: hashedAssessor,
         verified: true,
         active: true,
         roleId: assessorRole.id,
@@ -322,12 +240,12 @@ export class SeedService {
     // Create client users
     const clientUsers = await Promise.all([
       this.prisma.user.upsert({
-        where: { email: 'client1@vertice.com' },
+        where: { email: 'jesus.client@verticexchange.com' },
         create: {
-          name: 'Cliente',
-          lastName: 'Uno',
-          email: 'client1@vertice.com',
-          password: hashedPassword,
+          name: 'Jesus 2',
+          lastName: 'User 2',
+          email: 'jesus.client@verticexchange.com',
+          password: hashedClient,
           verified: true,
           active: true,
           roleId: clientRole.id,
@@ -342,9 +260,9 @@ export class SeedService {
           },
         },
         update: {
-          name: 'Cliente',
-          lastName: 'Uno',
-          password: hashedPassword,
+          name: 'Jesus 2',
+          lastName: 'User 2',
+          password: hashedClient,
           verified: true,
           active: true,
           roleId: clientRole.id,
@@ -368,12 +286,12 @@ export class SeedService {
         },
       }),
       this.prisma.user.upsert({
-        where: { email: 'client2@turisto.com' },
+        where: { email: 'jesus.client2@verticexchange.com' },
         create: {
-          name: 'Cliente',
-          lastName: 'Dos',
-          email: 'client2@turisto.com',
-          password: hashedPassword,
+          name: 'Jesus 3',
+          lastName: 'User 3',
+          email: 'jesus.client2@verticexchange.com',
+          password: hashedClient,
           verified: true,
           active: true,
           roleId: clientRole.id,
@@ -388,9 +306,9 @@ export class SeedService {
           },
         },
         update: {
-          name: 'Cliente',
-          lastName: 'Dos',
-          password: hashedPassword,
+          name: 'Jesus 3',
+          lastName: 'User 3',
+          password: hashedClient,
           verified: true,
           active: true,
           roleId: clientRole.id,
@@ -418,17 +336,17 @@ export class SeedService {
     return {
       admin: {
         email: adminUser.email,
-        password: 'Abcd123$',
+        password: process.env.SECRET_PASSWORD_ADMIN!,
         role: 'admin',
       },
       assessor: {
         email: assessorUser.email,
-        password: 'Abcd123$',
+        password: process.env.SECRET_PASSWORD_ASSESSOR!,
         role: 'assessor',
       },
       clients: clientUsers.map((user) => ({
         email: user.email,
-        password: 'Abcd123$',
+        password: process.env.SECRET_PASSWORD_CLIENT!,
         role: 'client',
       })),
     };

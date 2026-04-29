@@ -192,7 +192,7 @@ export class TicketService {
             paymentDetails?.financialInstitutionName || '',
           );
 
-        const bestAssessor = await this.findBestAssessor(tx);
+        const bestAssessor = await this.findBestAssessor(tx, 'ticket');
 
         const ourAccount = await tx.ourPaymentMethod.findFirst({
           where: {
@@ -369,6 +369,7 @@ export class TicketService {
               canOpenChat: true,
               status: TicketStatus.PROCESSING,
               assessorId: bestAssessor.id,
+              ticketNumber: ticketNumber,
             });
         }
 
@@ -687,6 +688,7 @@ export class TicketService {
         canOpenChat: true,
         status: updatedTicket.status,
         assessorId: updatedTicket.assessorId,
+        ticketNumber: ticketNumber,
       });
 
       return {
@@ -737,7 +739,6 @@ export class TicketService {
 
     let currentReceiptImage = ticket.receiptImage;
 
-    // Si aún no tiene receiptImage, buscar la última imagen que haya enviado el asesor al chat
     if (!currentReceiptImage && ticket.chat && ticket.chat.messages.length > 0) {
       currentReceiptImage = ticket.chat.messages[0].fileUrl;
     }
@@ -779,12 +780,16 @@ export class TicketService {
       PrismaClient<never, undefined, DefaultArgs>,
       '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'
     >,
+    teamName: string,
   ) {
     return await tx.user.findFirst({
       where: {
         role: { name: ValidRoles.assessor },
         status: AssessorStatus.AVAILABLE,
         online: true,
+        team: {
+          name: teamName
+        }
       },
       include: {
         _count: {

@@ -103,24 +103,24 @@ export class ExchangeRateService {
     'PEN → USDT': (from, to) => Number(from.sellRate! * to.sellRate!),
   };
 
-  /** Spread por defecto (%) para pares no listados en spreadOverrides */
   private readonly DEFAULT_SPREAD = 10;
 
-  /**
-   * Mapa de spread personalizado por par de cambio.
-   * - Clave: nombre del par (e.g. 'USD → BS')
-   * - Valor: porcentaje de spread (0 = sin spread, 5 = 5%, etc.)
-   * - Pares NO listados aquí usan DEFAULT_SPREAD (10%)
-   */
+ 
   private readonly spreadOverrides = new Map<string, number>([
-    // 0% spread
     ['USDT → USD', 0],
-    ['USDT → EUR', 0],
+    ['USDT → ARS', 0],
+    ['USDT → CLP', 0],
+    ['USDT → BS', 0],
+    ['USDT → COP', 0],
+    ['USDT → PEN', 0],
+    
     ['USD → COP', 0],
     ['USD → BS', 0],
     ['EUR → BS', 0],
+    ['EUR → USD', 0],
     ['BS → USD', 0],
     ['BS → EUR', 0],
+    
     ['ARS → USDT', 0],
     ['CLP → USDT', 0],
     ['BS → USDT', 0],
@@ -128,8 +128,8 @@ export class ExchangeRateService {
     ['USD → USDT', 0],
     ['EUR → USDT', 0],
     ['PEN → USDT', 0],
-
-    // Ejemplo: pares con spread personalizado
+    
+    ['USDT → EUR', 5],
     ['CLP → BS', 7],
     ['ARS → BS', 5],
     ['USD → CLP', 7],
@@ -142,7 +142,6 @@ export class ExchangeRateService {
   ]);
 
   /**
-   * Devuelve el factor de margen para un par dado.
    * Ej: 10% → 0.90, 5% → 0.95, 0% → 1.00
    */
   private getMarginForPair(exchangePair: string): number {

@@ -22,6 +22,7 @@ import { TeamModule } from './team/team.module';
 import { ReviewModule } from './review/review.module';
 import { KycModule } from './kyc/kyc.module';
 import { AsessorModule } from './assessor/assessor.module';
+import { SupportTicketModule } from './support-ticket/support-ticket.module';
 
 @Module({
   imports: [
@@ -77,6 +78,8 @@ import { AsessorModule } from './assessor/assessor.module';
     KycModule,
 
     AsessorModule,
+
+    SupportTicketModule,
   ],
   controllers: [],
   providers: [

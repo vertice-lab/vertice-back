@@ -185,6 +185,7 @@ export class TicketReceiptService {
     this.chatGateway.notifyTicketReceiptUpdated(notification.assessorId, {
       id: updated.id,
       ticketId: updated.ticketId,
+      ticketNumber: ticket.ticketNumber,
       status: updated.status,
       managerNote: updated.managerNote,
       managerResponseImageUrl: updated.managerResponseImageUrl,

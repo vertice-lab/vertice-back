@@ -219,7 +219,6 @@ export class AdminController {
     );
   }
 
-  // PATCH - Actualiza un método de pago (PRIVATE - Admin)
   @SkipThrottle({ default: false })
   @Patch('our-payment-method/update/:id')
   @RoleProtected(ValidRoles.admin)
@@ -236,7 +235,6 @@ export class AdminController {
     );
   }
 
-  // PATCH - Actualiza solo el estado isActive (PRIVATE - Admin)
   @SkipThrottle({ default: false })
   @Patch('our-payment-method/update-active/:id')
   @RoleProtected(ValidRoles.admin)
@@ -253,7 +251,6 @@ export class AdminController {
     );
   }
 
-  // DELETE - Elimina un método de pago (PRIVATE - Admin)
   @SkipThrottle({ default: false })
   @Delete('our-payment-method/delete/:id')
   @RoleProtected(ValidRoles.admin)

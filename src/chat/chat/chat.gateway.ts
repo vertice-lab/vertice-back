@@ -15,7 +15,7 @@ import { EncryptService } from 'src/auth/services/encrypt/encrypt.service';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from 'src/user/services/user/user.service';
 
-@WebSocketGateway({ cors: { origin: '*' } })
+@WebSocketGateway({ cors: { origin: process.env.FRONTEND_URL } })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
@@ -28,7 +28,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly encryptService: EncryptService,
     private readonly configService: ConfigService,
     private readonly userService: UserService,
-  ) {}
+  ) {
+    this.server = new Server({
+      cors: {
+        origin: process.env.FRONTEND_URL,
+      },
+    });
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -96,12 +102,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (welcomeMessage) {
         this.server
           .to(data.ticketNumber)
-          .emit('mensaje-desde-servidor', welcomeMessage);
+          .emit('new-message', {
+            ...welcomeMessage,
+            ticketNumber: data.ticketNumber,
+          });
       }
     }
   }
 
-  @SubscribeMessage('mensaje-desde-cliente')
+  @SubscribeMessage('send-message')
   async handleSendMessage(
     @MessageBody()
     data: {
@@ -125,8 +134,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.server
         .to(data.ticketNumber)
-        .emit('mensaje-desde-servidor', savedMessage);
-    } catch (error) {
+        .emit('new-message', {
+          ...savedMessage,
+          ticketNumber: data.ticketNumber,
+        });
+    } catch (error: any) {
       this.logger.error(`Error procesando mensaje: ${error.message}`);
     }
   }
@@ -179,13 +191,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId,
         messageText,
       );
-      this.server.to(ticketNumber).emit('mensaje-desde-servidor', savedMessage);
-    } catch (error) {
+      this.server
+        .to(ticketNumber)
+        .emit('new-message', {
+          ...savedMessage,
+          ticketNumber: ticketNumber,
+        });
+    } catch (error: any) {
       this.logger.error(`Error saving timer message: ${error.message}`);
     }
 
     // Broadcast timer info so all participants can show the countdown
     this.server.to(ticketNumber).emit('ticket-timer-updated', {
+      ticketNumber,
       minutes,
       startedAt: new Date().toISOString(),
     });
@@ -200,7 +218,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             status: finalized.status,
           });
         }
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(`Error auto-finalizing ticket on timeout: ${error.message}`);
       }
     }, minutes * 60 * 1000);

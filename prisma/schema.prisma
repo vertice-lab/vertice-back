@@ -39,6 +39,8 @@ model User {
   bankAccounts                 BankAccount[]
   currencyRateHistories        CurrencyRateHistory[]
   information                  InformationUser?
+  privacy                      Privacy?
+  security                     Security?
   messages                     Message[]
   ourPaymentMethods            OurPaymentMethod[]
   providers                    Provider[]
@@ -51,11 +53,14 @@ model User {
   country                      Country?                    @relation(fields: [countryCode], references: [country_code])
   role                         Role                        @relation(fields: [roleId], references: [id])
   team                         Team?                       @relation("TeamMembers", fields: [teamId], references: [id])
+  notifications                Notification[]
+  supportTickets               SupportTicket[]             @relation("UserSupport")
+  assignedSupportTickets       SupportTicket[]             @relation("AssignedSupport")
 }
 
 model Team {
   id        String   @id @default(uuid())
-  name      String
+  name      String   @unique
   managerId String   @unique
   createdAt DateTime @default(now())
   manager   User     @relation("TeamLeader", fields: [managerId], references: [id])
@@ -91,14 +96,51 @@ model InformationUser {
   dateBirth              String?
   acceptedTerms          Boolean  @default(false)
   receiveMarketingEmails Boolean  @default(false)
-  userId                 String   @unique
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   address                String?
   documentNumber         String?
   documentType           String?
   postalCode             String?
-  user                   User     @relation(fields: [userId], references: [id])
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Privacy {
+  id            String   @id @default(uuid())
+  publicProfile Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id      String  @id @default(uuid())
+  content String?
+  read    Boolean @default(false)
+
+  emailAlert    Boolean  @default(false)
+  smsAlert      Boolean  @default(false)
+  maketingEmail Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model Security {
+  id               String         @id @default(uuid())
+  twoFactorEnabled Boolean        @default(false)
+  twoFactorMethod  SecurityMethod @default(EMAIL)
+  twoFactorSecret  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model Country {
@@ -125,8 +167,11 @@ model Recipient {
   identificationNumber String             @unique
   updatedAt            DateTime           @updatedAt
   createdAt            DateTime           @default(now())
+  isActive             Boolean            @default(true)
   paymentDetails       PaymentDetail[]
   tickets              Ticket[]
+
+  @@index([isActive])
 }
 
 model PaymentDetail {
@@ -304,6 +349,7 @@ model Ticket {
   recipient            Recipient                   @relation(fields: [recipientId], references: [id])
   user                 User                        @relation("UserTickets", fields: [userId], references: [id])
   receiptNotifications TicketReceiptNotification[]
+  supportTickets       SupportTicket[]
 
   @@index([status, createdAt])
   @@index([userId])
@@ -327,13 +373,38 @@ model TicketReceiptNotification {
   @@index([managerId, status, createdAt])
 }
 
+model SupportTicket {
+  id            String       @id @default(uuid())
+  supportNumber String       @unique
+  title         String
+  description   String
+  status        TicketStatus @default(PENDING)
+  priority      Priority     @default(MEDIUM)
+
+  evidenceImage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relatedTicketId String?
+  relatedTicket   Ticket? @relation(fields: [relatedTicketId], references: [id])
+  assignedToId    String?
+  assignedTo      User?   @relation("AssignedSupport", fields: [assignedToId], references: [id])
+  userId          String
+  user            User    @relation("UserSupport", fields: [userId], references: [id])
+
+  chat Chat?
+}
+
 model Chat {
-  id        String    @id @default(uuid())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  ticketId  String    @unique
-  ticket    Ticket    @relation(fields: [ticketId], references: [id])
-  messages  Message[]
+  id              String         @id @default(uuid())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  messages        Message[]
+  ticketId        String?        @unique
+  ticket          Ticket?        @relation(fields: [ticketId], references: [id])
+  supportTicketId String?        @unique
+  supportTicket   SupportTicket? @relation(fields: [supportTicketId], references: [id])
 }
 
 model Message {
@@ -375,6 +446,11 @@ enum KycStatus {
   APPROVED
   DECLINED
   ABANDONED
+}
+
+enum SecurityMethod {
+  EMAIL
+  SMS
 }
 
 enum PaymentMethodType {

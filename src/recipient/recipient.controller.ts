@@ -33,6 +33,8 @@ export class RecipientController {
   }
 
   @Get()
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -43,11 +45,15 @@ export class RecipientController {
   }
 
   @Get(':id')
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
   findOne(@Param('id') id: string) {
     return this.recipientService.findOne(id);
   }
 
   @Get(':id/payment-details')
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
   findPaymentDetails(
     @Param('id') id: string,
     @Query('toCurrency') toCurrency?: string,
@@ -56,6 +62,8 @@ export class RecipientController {
   }
 
   @Patch(':id')
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
   update(
     @Param('id') id: string,
     @Body() updateRecipientDto: UpdateRecipientDto,
@@ -64,6 +72,8 @@ export class RecipientController {
   }
 
   @Delete(':id')
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
   remove(@Param('id') id: string) {
     return this.recipientService.remove(id);
   }

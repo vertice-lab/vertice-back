@@ -43,7 +43,9 @@ export class CurrencyRateService {
           fromCurrency: fromCurrencyUpperCase,
           toCurrency: toCurrencyUpperCase,
         },
+        isActive: true,
       },
+      
     });
 
     return {
@@ -63,6 +65,7 @@ export class CurrencyRateService {
           fromCurrency: fromCurrencyUpperCase,
           toCurrency: toCurrencyUpperCase,
         },
+        isActive: true,
       },
       select: {
         paymentMethods: true,
@@ -121,6 +124,7 @@ export class CurrencyRateService {
             },
           },
         },
+        
       });
 
       return {

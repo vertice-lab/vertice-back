@@ -201,9 +201,13 @@ export class AuthService {
               phone,
               dateBirth,
               acceptedTerms,
-              receiveMarketingEmails,
             },
           },
+          notifications: {
+            create: {
+              maketingEmail: receiveMarketingEmails || false,
+            },
+          }
         },
         select: {
           id: true,

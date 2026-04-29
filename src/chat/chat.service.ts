@@ -10,21 +10,30 @@ interface BankDetailRule {
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaClientService) {}
+  constructor(private prisma: PrismaClientService) { }
 
   async getTicketChatStatus(ticketNumber: string, userId: string) {
-    const [ticket, user] = await Promise.all([
-      this.prisma.ticket.findUnique({
+    const isSupport = ticketNumber.startsWith('SUP-');
+
+    const [ticket, supportTicket, user] = await Promise.all([
+      !isSupport ? this.prisma.ticket.findUnique({
         where: { ticketNumber },
         select: { status: true, assessorId: true, userId: true },
-      }),
+      }) : null,
+      isSupport ? this.prisma.supportTicket.findUnique({
+        where: { supportNumber: ticketNumber },
+        select: { status: true, assignedToId: true, userId: true },
+      }) : null,
       this.prisma.user.findUnique({
         where: { id: userId },
         select: { role: { select: { name: true } } },
       }),
     ]);
 
-    if (!ticket)
+    const activeTicket = ticket || supportTicket;
+    const activeAssessorId = ticket ? ticket.assessorId : supportTicket?.assignedToId;
+
+    if (!activeTicket)
       return {
         canOpenChat: false,
         status: TicketStatus.PENDING,
@@ -33,18 +42,19 @@ export class ChatService {
 
     if (user) {
       const isAdminOrManager = user.role.name === 'admin' || user.role.name === 'manager';
-      if (!isAdminOrManager && ticket.userId !== userId && ticket.assessorId !== userId) {
+      if (!isAdminOrManager && activeTicket.userId !== userId && activeAssessorId !== userId) {
         throw new UnauthorizedException('Status denegado: no autorizado');
       }
     }
 
     const canOpenChat =
-      ticket.status === TicketStatus.PROCESSING && ticket.assessorId !== null;
+      activeTicket.status === TicketStatus.PROCESSING && activeAssessorId !== null;
 
     return {
       canOpenChat,
-      status: ticket.status,
-      assessorId: ticket.assessorId,
+      status: activeTicket.status,
+      assessorId: activeAssessorId,
+      ticketNumber: ticketNumber,
     };
   }
 
@@ -55,24 +65,33 @@ export class ChatService {
     fileUrl?: string,
     fileType?: string,
   ) {
-    const [ticket, sender] = await Promise.all([
-      this.prisma.ticket.findUnique({
+    const isSupport = ticketNumber.startsWith('SUP-');
+
+    const [ticket, supportTicket, sender] = await Promise.all([
+      !isSupport ? this.prisma.ticket.findUnique({
         where: { ticketNumber },
         include: { chat: true },
-      }),
+      }) : null,
+      isSupport ? this.prisma.supportTicket.findUnique({
+        where: { supportNumber: ticketNumber },
+        include: { chat: true },
+      }) : null,
       this.prisma.user.findUnique({
         where: { id: senderId },
         select: { role: { select: { name: true } } },
       }),
     ]);
 
-    if (!ticket) throw new NotFoundException('Ticket no encontrado');
-    if (!ticket.chat)
+    const activeTicket = ticket || supportTicket;
+    const activeAssessorId = ticket ? ticket.assessorId : supportTicket?.assignedToId;
+
+    if (!activeTicket) throw new NotFoundException('Ticket no encontrado');
+    if (!activeTicket.chat)
       throw new NotFoundException('Chat no iniciado para este ticket');
     if (!sender) throw new UnauthorizedException('Usuario no válido');
 
     const isAdminOrManager = sender.role.name === 'admin' || sender.role.name === 'manager';
-    if (!isAdminOrManager && ticket.userId !== senderId && ticket.assessorId !== senderId) {
+    if (!isAdminOrManager && activeTicket.userId !== senderId && activeAssessorId !== senderId) {
       throw new UnauthorizedException('No tienes permiso para interactuar con este ticket');
     }
 
@@ -82,7 +101,7 @@ export class ChatService {
         fileUrl,
         fileType,
         senderId,
-        chatId: ticket.chat.id,
+        chatId: activeTicket.chat.id,
       },
       include: {
         sender: {
@@ -98,25 +117,33 @@ export class ChatService {
   }
 
   async getMessages(ticketNumber: string, userId: string) {
-    const [ticket, user] = await Promise.all([
-      this.prisma.ticket.findUnique({
+    const isSupport = ticketNumber.startsWith('SUP-');
+
+    const [ticket, supportTicket, user] = await Promise.all([
+      !isSupport ? this.prisma.ticket.findUnique({
         where: { ticketNumber },
         include: { chat: true },
-      }),
+      }) : null,
+      isSupport ? this.prisma.supportTicket.findUnique({
+        where: { supportNumber: ticketNumber },
+        include: { chat: true },
+      }) : null,
       this.prisma.user.findUnique({
         where: { id: userId },
         select: { role: { select: { name: true } } },
       }),
     ]);
 
-    if (!ticket) throw new NotFoundException('Ticket no encontrado');
-    if (!user) throw new UnauthorizedException('Usuario no válido');
-  
+    const activeTicket = ticket || supportTicket;
 
-    if (!ticket.chat) return [];
+    if (!activeTicket) throw new NotFoundException('Ticket no encontrado');
+    if (!user) throw new UnauthorizedException('Usuario no válido');
+
+
+    if (!activeTicket.chat) return [];
 
     return await this.prisma.message.findMany({
-      where: { chatId: ticket.chat.id },
+      where: { chatId: activeTicket.chat.id },
       orderBy: { createdAt: 'asc' },
       include: {
         sender: {
@@ -204,6 +231,27 @@ export class ChatService {
   }
 
   async sendWelcomeMessage(ticketNumber: string) {
+    const isSupport = ticketNumber.startsWith('SUP-');
+
+    if (isSupport) {
+      const supportTicket = await this.prisma.supportTicket.findUnique({
+        where: { supportNumber: ticketNumber },
+        include: {
+          chat: { include: { messages: { take: 1 } } },
+          user: { select: { name: true, lastName: true } },
+          assignedTo: true,
+        },
+      });
+
+      if (!supportTicket || !supportTicket.chat || !supportTicket.assignedToId) return null;
+      if (supportTicket.chat.messages.length > 0) return null;
+
+      const clientName = supportTicket.user.name || 'Cliente';
+      const welcomeText = `Hola ${clientName}, bienvenido al chat de soporte técnico para tu ticket ${ticketNumber}. Mi nombre es ${supportTicket.assignedTo?.name || 'Asesor'} y estaré asistiendo con tu incidencia. Por favor, descríbenos tu problema con el mayor detalle posible.`;
+
+      return await this.saveMessage(ticketNumber, supportTicket.assignedToId, welcomeText);
+    }
+
     const ticket = await this.prisma.ticket.findUnique({
       where: { ticketNumber },
       include: {

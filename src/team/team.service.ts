@@ -16,6 +16,15 @@ export class TeamService {
   async create(createTeamDto: CreateTeamDto) {
     const { name, managerId, memberIds } = createTeamDto;
 
+
+    const existingTeam = await this.prisma.team.findUnique({
+      where: { name },
+    });
+
+    if (existingTeam) {
+      throw new BadRequestException('Ya existe un equipo con ese nombre');
+    }
+
     const manager = await this.prisma.user.findUnique({
       where: {
         id: managerId,
@@ -76,7 +85,32 @@ export class TeamService {
   async findAll() {
     try {
       const list = await this.prisma.team.findMany({
-        include: { manager: true, _count: { select: { members: true } } },
+        select: {
+          id: true,
+          name: true,
+          manager: {
+            select: {
+              id: true,
+              name: true,
+              lastName: true,
+              email: true,
+      
+            },
+          },
+          createdAt: true,
+          members: {
+            select: {
+              id: true,
+              name: true,
+              lastName: true,
+              email: true,
+              image: true,
+            },
+          },
+          _count: {
+            select: { members: true },
+          },
+        },
       });
 
       return {
@@ -187,7 +221,7 @@ export class TeamService {
         ok: true,
         msg: 'Actualizado correctamente',
       };
-    } catch (error) {
+    } catch (error: any) {
       if (error.code === 'P2002') {
         throw new BadRequestException('Este Manager ya lidera otro equipo.');
       }

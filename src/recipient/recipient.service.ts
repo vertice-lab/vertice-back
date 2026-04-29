@@ -1,15 +1,16 @@
 import { Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { CreateRecipientDto } from './dto/create-recipient.dto';
+import { CreatePaymentDetailDto, CreateRecipientDto } from './dto/create-recipient.dto';
 import { UpdateRecipientDto } from './dto/update-recipient.dto';
 import { PrismaClientService } from 'src/prisma-client/prisma-client.service';
 import { EncryptService } from 'src/auth/services/encrypt/encrypt.service';
+import { Recipient } from 'generated/prisma/client';
 
 @Injectable()
 export class RecipientService {
   constructor(
     private prisma: PrismaClientService,
     private encryptService: EncryptService
-  ) {}
+  ) { }
 
   private async decryptRecipient(recipient: any) {
     if (!recipient) return recipient;
@@ -31,6 +32,39 @@ export class RecipientService {
     try {
       const { paymentDetails, ...recipientData } = createRecipientDto;
 
+      // Check if recipient already exists (active or inactive)
+      const existingRecipient = await this.prisma.recipient.findUnique({
+        where: { identificationNumber: recipientData.identificationNumber },
+      });
+
+      if (existingRecipient) {
+        if (existingRecipient.isActive) {
+          throw new BadRequestException('Ya existe un destinatario con este documento');
+        }
+
+        // If inactive, reactivate and update
+        const reactivatedRecipient = await this.prisma.recipient.update({
+          where: { id: existingRecipient.id },
+          data: {
+            ...(recipientData as Recipient),
+            isActive: true,
+            ...(paymentDetails && paymentDetails.length > 0 && {
+              paymentDetails: {
+                deleteMany: {}, // Clear old details to refresh them
+                create: paymentDetails as CreatePaymentDetailDto[],
+              },
+            }),
+          },
+          include: { paymentDetails: true },
+        });
+
+        return {
+          ok: true,
+          data: await this.decryptRecipient(reactivatedRecipient),
+          msg: 'Destinatario reactivado exitosamente',
+        };
+      }
+
       const recipient = await this.prisma.recipient.create({
         data: {
           ...(recipientData as any),
@@ -51,6 +85,7 @@ export class RecipientService {
         msg: 'Destinatario creado exitosamente',
       };
     } catch (error: any) {
+      if (error instanceof BadRequestException) throw error;
       if (error.code === 'P2002') {
         throw new BadRequestException('Ya existe un destinatario con este documento o correo');
       }
@@ -63,8 +98,9 @@ export class RecipientService {
       const skip = (page - 1) * limit;
 
       const [totalRecipients, recipients] = await Promise.all([
-        this.prisma.recipient.count(),
+        this.prisma.recipient.count({ where: { isActive: true } }),
         this.prisma.recipient.findMany({
+          where: { isActive: true },
           skip,
           take: limit,
           include: { paymentDetails: true },
@@ -201,11 +237,9 @@ export class RecipientService {
 
   async remove(id: string) {
     try {
-      // Delete all payment details for this recipient
-      await this.prisma.paymentDetail.deleteMany({ where: { recipientId: id } });
-
-      await this.prisma.recipient.delete({
+      await this.prisma.recipient.update({
         where: { id },
+        data: { isActive: false }
       });
 
       return {
