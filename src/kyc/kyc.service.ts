@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   HttpException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
@@ -26,6 +27,7 @@ export class KycService {
   private readonly logger = new Logger(KycService.name);
   private readonly DIDIT_API_URL?: string;
   private readonly DIDIT_API_KEY?: string;
+  private readonly MAX_KYC_ATTEMPTS = 3;
 
 
   private readonly WEBHOOK_SECRET = process.env.DIDIT_WEBHOOK_SECRET || '';
@@ -155,19 +157,50 @@ export class KycService {
         this.logger.log(`Decision received for session: ${JSON.stringify(decision)}`);
       }
 
-      // ── Detección de fraude ──
+      // ── Detección de fraude con sistema de reintentos ──
       const fraudWarnings = this.hasFraudWarnings(decision);
       let finalStatus = mappedStatus;
+
       if (fraudWarnings.length > 0) {
-        this.logger.warn(`🚨 FRAUDE DETECTADO para sesión ${session_id}: ${fraudWarnings.join(', ')}`);
+        const currentUser = await this.prisma.user.findUnique({
+          where: { kycSessionId: session_id },
+          select: { kycAttempts: true },
+        });
+
+        const currentAttempts = currentUser?.kycAttempts ?? 0;
+
+        if (currentAttempts >= this.MAX_KYC_ATTEMPTS) {
+          // Agotó intentos → bloquear cuenta
+          this.logger.warn(`🚨 CUENTA BLOQUEADA: sesión ${session_id} agotó ${this.MAX_KYC_ATTEMPTS} intentos. Warnings: ${fraudWarnings.join(', ')}`);
+          await this.prisma.user.update({
+            where: { kycSessionId: session_id },
+            data: {
+              kycStatus: KycStatus.DECLINED,
+              active: false,
+            },
+          });
+        } else {
+          // Aún tiene intentos → declinar sin bloquear
+          this.logger.warn(`⚠️ Intento ${currentAttempts}/${this.MAX_KYC_ATTEMPTS} con warnings para sesión ${session_id}: ${fraudWarnings.join(', ')}`);
+          await this.prisma.user.update({
+            where: { kycSessionId: session_id },
+            data: {
+              kycStatus: KycStatus.DECLINED,
+              // active sigue true → puede reintentar
+            },
+          });
+        }
+        finalStatus = KycStatus.DECLINED;
+      } else if (finalStatus === KycStatus.APPROVED) {
+        // Aprobado sin fraud warnings → reactivar y aprobar
         await this.prisma.user.update({
           where: { kycSessionId: session_id },
           data: {
-            kycStatus: KycStatus.DECLINED,
-            active: false,
+            kycStatus: KycStatus.APPROVED,
+            verified: true,
+            active: true,
           },
         });
-        finalStatus = KycStatus.DECLINED;
       }
 
       // ── Sincronizar datos del usuario con los del KYC (solo si fue aprobado y no hubo fraude) ──
@@ -177,10 +210,10 @@ export class KycService {
 
       const user = await this.prisma.user.findUnique({
         where: { kycSessionId: session_id },
-        select: { id: true },
+        select: { id: true, kycAttempts: true },
       });
       if (user) {
-        this.kycGateway.notifyKycStatusUpdated(user.id, finalStatus);
+        this.kycGateway.notifyKycStatusUpdated(user.id, finalStatus, user.kycAttempts, this.MAX_KYC_ATTEMPTS);
       }
     } catch (error: any) {
       throw new InternalServerErrorException(error.message)
@@ -277,6 +310,24 @@ export class KycService {
 
   async createDiditSession(payload: CreateSessionDto, userId: string): Promise<CreateSessionResponse> {
     try {
+      // Validar intentos disponibles antes de crear sesión
+      const existingUser = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { kycAttempts: true, kycStatus: true, active: true },
+      });
+
+      if (!existingUser) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      if (existingUser.kycStatus === KycStatus.APPROVED) {
+        throw new BadRequestException('Tu cuenta ya está verificada');
+      }
+
+      if (existingUser.kycAttempts >= this.MAX_KYC_ATTEMPTS && !existingUser.active) {
+        throw new ForbiddenException('Has agotado tus intentos de verificación. Contacta a soporte.');
+      }
+
       const finalPayload = {
         ...payload,
         workflow_id: payload.workflow_id || this.configService.get<string>('DIDIT_WORKFLOW_ID'),
@@ -299,12 +350,16 @@ export class KycService {
         data: {
           kycSessionId: data.session_id,
           kycStatus: KycStatus.IN_PROGRESS,
+          kycAttempts: { increment: 1 },
         },
       });
 
-      this.logger.log(`Didit session created and linked to user ${userId}`);
+      this.logger.log(`Didit session created and linked to user ${userId} (attempt ${existingUser.kycAttempts + 1}/${this.MAX_KYC_ATTEMPTS})`);
       return data;
     } catch (error: any) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
       this.logger.error('Error creating Didit session', error?.response?.data || error.message);
       throw new InternalServerErrorException(
         'Failed to create Didit session',
@@ -321,6 +376,7 @@ export class KycService {
         select: {
           kycStatus: true,
           kycSessionId: true,
+          kycAttempts: true,
         },
       });
 
@@ -331,6 +387,8 @@ export class KycService {
       return {
         kycStatus: user.kycStatus,
         kycSessionId: user.kycSessionId,
+        kycAttempts: user.kycAttempts,
+        maxAttempts: this.MAX_KYC_ATTEMPTS,
       };
 
     } catch (error: any) {
@@ -503,5 +561,62 @@ export class KycService {
 
       throw new InternalServerErrorException('Error general al actualizar el estado de la sesión, no se pudo contactar a Didit');
     }
+  }
+
+  /**
+   * Obtiene la decisión de la sesión KYC del usuario autenticado.
+   */
+  async getSessionDecisionForUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { kycSessionId: true },
+    });
+
+    if (!user?.kycSessionId) {
+      throw new NotFoundException('No hay sesión KYC activa para este usuario');
+    }
+
+    return this.getRetrieveSessionDecision(user.kycSessionId, userId);
+  }
+
+  /**
+   * Resetea el KYC de un usuario (solo admin).
+   * Pone kycStatus en NOT_STARTED, kycAttempts en 0, active en true.
+   */
+  async resetKycForUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, kycStatus: true, kycAttempts: true, active: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        kycStatus: KycStatus.NOT_STARTED,
+        kycAttempts: 0,
+        kycSessionId: null,
+        active: true,
+        verified: false,
+      },
+    });
+
+    this.logger.log(`🔄 KYC reseteado para usuario ${user.email} (${userId}) por admin`);
+
+    return {
+      ok: true,
+      message: `KYC reseteado exitosamente para ${user.email}`,
+      user: {
+        id: user.id,
+        email: user.email,
+        previousStatus: user.kycStatus,
+        previousAttempts: user.kycAttempts,
+        newStatus: KycStatus.NOT_STARTED,
+        newAttempts: 0,
+      },
+    };
   }
 }

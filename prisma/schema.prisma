@@ -36,6 +36,7 @@ model User {
   status                       AssessorStatus              @default(OFFLINE)
   kycSessionId                 String?                     @unique
   kycStatus                    KycStatus                   @default(NOT_STARTED)
+  kycAttempts                  Int                         @default(0)
   bankAccounts                 BankAccount[]
   currencyRateHistories        CurrencyRateHistory[]
   information                  InformationUser?

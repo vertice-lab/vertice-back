@@ -65,18 +65,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   //NestJS busca específicamente el método llamado handleDisconnect
   //Al escribir implements OnGatewayDisconnect, le estás diciendo a NestJS: "Este Gateway tiene la capacidad de reaccionar a desconexiones".
   async handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id} aqui`);
-    const token = client.handshake.auth?.token;
+    this.logger.log(`Client disconnected: ${client.id}`);
 
-    const payload = await this.jwtService.verifyAsync(token);
+    try {
+      // Usar el userId almacenado en handleConnection para evitar verificar un token expirado
+      if (client.data.userId) {
+        await this.userService.isOffOnlineUser(client.data.userId);
+        return;
+      }
 
-    if (!payload.sub) {
-      this.logger.error('Token válido pero sin identificador');
-      return client.disconnect();
+      // Fallback: si por alguna razón no se guardó el userId, intentar con el token
+      const token = client.handshake.auth?.token;
+      if (!token) {
+        this.logger.warn(`Cliente ${client.id} desconectado sin token ni userId almacenado`);
+        return;
+      }
+
+      const payload = await this.jwtService.verifyAsync(token);
+
+      if (!payload.sub) {
+        this.logger.error('Token válido pero sin identificador');
+        return;
+      }
+
+      const decryptUserId = await this.encryptService.decrypt(payload.sub);
+      await this.userService.isOffOnlineUser(decryptUserId);
+    } catch (error) {
+      this.logger.warn(`No se pudo marcar offline al cliente ${client.id}: token expirado o inválido`);
     }
-
-    const decryptUserId = await this.encryptService.decrypt(payload.sub);
-    await this.userService.isOffOnlineUser(decryptUserId);
   }
 
   @SubscribeMessage('check-ticket-status')

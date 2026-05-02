@@ -8,13 +8,9 @@ import { Logger } from '@nestjs/common';
 export class KycGateway {
     @WebSocketServer()
     server: Server;
-    private readonly logger = new Logger(KycGateway.name);
-    /**
-     * Notifica al usuario conectado por Socket que su estado KYC cambió.
-     * El móvil escucha el evento 'kyc-status-updated'.
-     */
-    notifyKycStatusUpdated(userId: string, kycStatus: string) {
-        this.logger.log(`📡 Emitiendo kyc-status-updated a userId: ${userId} -> ${kycStatus}`);
-        this.server.to(userId).emit('kyc-status-updated', { kycStatus });
+    
+    notifyKycStatusUpdated(userId: string, kycStatus: string, kycAttempts?: number, maxAttempts?: number) {
+  
+        this.server.to(userId).emit('kyc-status-updated', { kycStatus, kycAttempts, maxAttempts });
     }
 }

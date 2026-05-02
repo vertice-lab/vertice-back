@@ -61,7 +61,7 @@ export class KycController {
     @Headers('x-timestamp') timestamp: string,
   ) {
     try {
-      this.logger.log(`Headers -> Signature-V2: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}`);
+      // this.logger.log(`Headers -> Signature-V2: ${signature || 'FALTA'}, Timestamp: ${timestamp || 'FALTA'}`);
 
       if (!signature) {
         this.logger.warn('Cabeceras de Didit no encontradas');
@@ -71,13 +71,12 @@ export class KycController {
       const rawBody = req.rawBody;
 
       if (!rawBody) {
-        this.logger.error('Raw body no habilitado en la configuración de la aplicación NestJS. No se puede verificar la firma.');
+        // this.logger.error('Raw body no habilitado en la configuración de la aplicación NestJS. No se puede verificar la firma.');
         throw new UnauthorizedException('Payload inválido');
       }
 
       const payload = JSON.parse(rawBody.toString('utf8'));
 
-      // this.logger.log(`📦 PAYLOAD ENTRANTE:\n${JSON.stringify(payload, null, 2)}`);
 
       const isValid = this.kycService.validateSignature(
         rawBody,
@@ -105,11 +104,19 @@ export class KycController {
     }
   }
 
+  @Get('session-decision-user')
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
+  async getSessionDecisionUser(@Request() req) {
+    const userId = req.user.sub;
+    return this.kycService.getSessionDecisionForUser(userId);
+  }
+
   @Get('session/:sessionId/decision')
   @RoleProtected(ValidRoles.client, ValidRoles.admin)
   @UseGuards(AuthGuard, RolesGuard)
   async getSessionDecision(@Request() req, @Param('sessionId') sessionId: string) {
-    // Añadimos '?' para evitar el cuelgue si req.user no existe al probar sin Guards
+   
     const userId = req.user?.sub || 'usuario-de-prueba';
 
     return this.kycService.getRetrieveSessionDecision(sessionId, userId);
@@ -120,5 +127,12 @@ export class KycController {
   @UseGuards(AuthGuard, RolesGuard)
   async updateStatus(@Param('sessionId') sessionId: string, @Body() payload: UpdateStatusDto) {
     return this.kycService.updateStatus(sessionId, payload);
+  }
+
+  @Patch('admin/reset-kyc/:userId')
+  @RoleProtected(ValidRoles.admin)
+  @UseGuards(AuthGuard, RolesGuard)
+  async resetKyc(@Param('userId') userId: string) {
+    return this.kycService.resetKycForUser(userId);
   }
 }
