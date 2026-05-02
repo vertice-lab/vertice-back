@@ -22,14 +22,15 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copiar los package.json y prisma
+# Copiar los package.json, prisma y config
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
-# Instalar solo dependencias de producción
-RUN npm ci --omit=dev
+# Instalar dependencias de producción + prisma CLI (necesario para migrate deploy y prisma/config)
+RUN npm ci --omit=dev && npm install prisma
 
-# Generar Prisma Client indispensable en producción
+# Generar Prisma Client en producción
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" npx prisma generate
 
 # Copiar de la etapa de builder los archivos compilados
@@ -38,4 +39,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 5000
 
 # Comando para arrancar en producción (incluye migraciones automáticas)
-CMD ["sh", "-c", "npx prisma migrate deploy --url \"$DATABASE_URL\" && npm run start:prod"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]
