@@ -38,4 +38,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 5000
 
 # Comando para arrancar en producción (incluye migraciones automáticas)
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]
+CMD ["sh", "-c", "npx prisma migrate deploy --url \"$DATABASE_URL\" && npm run start:prod"]
