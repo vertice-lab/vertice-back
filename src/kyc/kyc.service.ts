@@ -157,42 +157,11 @@ export class KycService {
         this.logger.log(`Decision received for session: ${JSON.stringify(decision)}`);
       }
 
-      // ── Detección de fraude con sistema de reintentos ──
-      const fraudWarnings = this.hasFraudWarnings(decision);
+
       let finalStatus = mappedStatus;
 
-      if (fraudWarnings.length > 0) {
-        const currentUser = await this.prisma.user.findUnique({
-          where: { kycSessionId: session_id },
-          select: { kycAttempts: true },
-        });
-
-        const currentAttempts = currentUser?.kycAttempts ?? 0;
-
-        if (currentAttempts >= this.MAX_KYC_ATTEMPTS) {
-          // Agotó intentos → bloquear cuenta
-          this.logger.warn(`🚨 CUENTA BLOQUEADA: sesión ${session_id} agotó ${this.MAX_KYC_ATTEMPTS} intentos. Warnings: ${fraudWarnings.join(', ')}`);
-          await this.prisma.user.update({
-            where: { kycSessionId: session_id },
-            data: {
-              kycStatus: KycStatus.DECLINED,
-              active: false,
-            },
-          });
-        } else {
-          // Aún tiene intentos → declinar sin bloquear
-          this.logger.warn(`⚠️ Intento ${currentAttempts}/${this.MAX_KYC_ATTEMPTS} con warnings para sesión ${session_id}: ${fraudWarnings.join(', ')}`);
-          await this.prisma.user.update({
-            where: { kycSessionId: session_id },
-            data: {
-              kycStatus: KycStatus.DECLINED,
-              // active sigue true → puede reintentar
-            },
-          });
-        }
-        finalStatus = KycStatus.DECLINED;
-      } else if (finalStatus === KycStatus.APPROVED) {
-        // Aprobado sin fraud warnings → reactivar y aprobar
+      if (mappedStatus === KycStatus.APPROVED) {
+        this.logger.log(`✅ Sesión ${session_id} APROBADA por Didit. Reactivando cuenta.`);
         await this.prisma.user.update({
           where: { kycSessionId: session_id },
           data: {
@@ -201,9 +170,59 @@ export class KycService {
             active: true,
           },
         });
+        finalStatus = KycStatus.APPROVED;
+      } else {
+        // Didit NO aprobó → verificar fraud warnings
+        const fraudWarnings = this.hasFraudWarnings(decision);
+
+        if (fraudWarnings.length > 0) {
+          const currentUser = await this.prisma.user.findUnique({
+            where: { kycSessionId: session_id },
+            select: { kycAttempts: true },
+          });
+
+          const currentAttempts = currentUser?.kycAttempts ?? 0;
+
+          if (currentAttempts >= this.MAX_KYC_ATTEMPTS) {
+            const diditDecision = await this.verifySessionWithDidit(session_id);
+            if (diditDecision === KycStatus.APPROVED) {
+              // Didit ya aprobó → no bloquear, aprobar
+              this.logger.log(`✅ Didit aprobó la sesión ${session_id} internamente. No se bloqueará la cuenta.`);
+              await this.prisma.user.update({
+                where: { kycSessionId: session_id },
+                data: {
+                  kycStatus: KycStatus.APPROVED,
+                  verified: true,
+                  active: true,
+                },
+              });
+              finalStatus = KycStatus.APPROVED;
+            } else {
+              // Confirmado declined → bloquear
+              this.logger.warn(`🚨 CUENTA BLOQUEADA: sesión ${session_id} agotó ${this.MAX_KYC_ATTEMPTS} intentos. Warnings: ${fraudWarnings.join(', ')}`);
+              await this.prisma.user.update({
+                where: { kycSessionId: session_id },
+                data: {
+                  kycStatus: KycStatus.DECLINED,
+                  active: false,
+                },
+              });
+              finalStatus = KycStatus.DECLINED;
+            }
+          } else {
+            this.logger.warn(`⚠️ Intento ${currentAttempts}/${this.MAX_KYC_ATTEMPTS} con warnings para sesión ${session_id}: ${fraudWarnings.join(', ')}`);
+            await this.prisma.user.update({
+              where: { kycSessionId: session_id },
+              data: {
+                kycStatus: KycStatus.DECLINED,
+                // active sigue true → puede reintentar
+              },
+            });
+          }
+          finalStatus = KycStatus.DECLINED;
+        }
       }
 
-      // ── Sincronizar datos del usuario con los del KYC (solo si fue aprobado y no hubo fraude) ──
       if (finalStatus === KycStatus.APPROVED && decision) {
         await this.syncUserDataFromKyc(session_id, decision);
       }
@@ -220,12 +239,29 @@ export class KycService {
     }
   }
 
+  private async verifySessionWithDidit(sessionId: string): Promise<KycStatus> {
+    try {
+      const { data } = await axios.get(
+        `${this.DIDIT_API_URL}/v3/session/${sessionId}/decision`,
+        {
+          headers: {
+            'x-api-key': this.DIDIT_API_KEY,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return this.mapDiditStatus(data.status);
+    } catch (error) {
+      this.logger.error(`Error verificando sesión ${sessionId} con Didit`, error);
+      return KycStatus.DECLINED;
+    }
+  }
+
   /**
    * Compara los datos del KYC (nombre, apellido, documento) con los de la DB.
    * Solo actualiza si el KYC fue aprobado Y el valor del KYC es válido (no vacío, mínimo 2 caracteres).
    */
   private async syncUserDataFromKyc(sessionId: string, decision: any): Promise<void> {
-    // Tomamos la primera verificación de identidad (la principal)
     const idVerification = decision.id_verifications?.[0];
     if (!idVerification) {
       this.logger.warn(`No hay id_verifications en la decisión para sesión ${sessionId}`);

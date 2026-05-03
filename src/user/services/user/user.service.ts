@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Logger,
   InternalServerErrorException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaClientService } from 'src/prisma-client/prisma-client.service';
 import {
@@ -24,10 +25,26 @@ import { CreateRoleDto } from 'src/user/dto/create-role.dto';
 import { AssessorStatus } from 'src/ticket/enums/ticket-status.enum';
 
 @Injectable()
-export class UserService {
+export class UserService implements OnModuleInit {
   private readonly logger = new Logger(UserService.name);
 
   constructor(private prisma: PrismaClientService) {}
+
+  async onModuleInit() {
+    this.logger.log('Restableciendo estado de conexión de todos los usuarios a offline (Limpieza de reinicio)...');
+    try {
+      await this.prisma.user.updateMany({
+        where: { online: true },
+        data: {
+          online: false,
+          status: AssessorStatus.OFFLINE,
+        },
+      });
+      this.logger.log('Estado de conexión de usuarios restablecido con éxito.');
+    } catch (error) {
+      this.logger.error('Error al restablecer el estado de conexión', error);
+    }
+  }
 
   private mapToUserResponse(
     user: Prisma.UserGetPayload<Record<string, never>> & {
