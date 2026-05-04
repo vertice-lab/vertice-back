@@ -240,6 +240,19 @@ export class AuthService {
 
   async syncGoogleUser(googleData: GoogleCallbackDto) {
     try {
+
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: googleData.email },
+        include: { providers: true },
+      });
+
+      if (existingUser) {
+        const hasGoogleProvider = existingUser.providers.some(p => p.provider === 'google');
+        if (!hasGoogleProvider) {
+          throw new BadRequestException('El usuario ya está registrado con correo y contraseña');
+        }
+      }
+
       const user = await this.prisma.$transaction(async (prisma) => {
         const existingUser = await prisma.user.findUnique({
           where: { email: googleData.email },
@@ -265,8 +278,8 @@ export class AuthService {
 
         const newUser = await prisma.user.create({
           data: {
-            name: googleData.name || '',
-            lastName: '',
+            name: googleData.name?.split(' ')[0] || '',
+            lastName: googleData.name?.split(' ')[1] || '',
             email: googleData.email,
             password: await argon2.hash(this.generateRandomPassword()),
             verified: true,
@@ -418,7 +431,7 @@ export class AuthService {
       await this.emailService.sendEmailChangePassword(user.email, newToken);
 
       return { ok: true, message: 'Revise su bandeja de entrada' };
-    } catch (error:any) {
+    } catch (error: any) {
       if (
         error instanceof NotFoundException ||
         error instanceof UnauthorizedException

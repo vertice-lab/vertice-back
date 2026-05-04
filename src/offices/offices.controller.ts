@@ -19,7 +19,7 @@ import {
 } from 'src/auth/decorators/role-protected/role-protected.decorator';
 import { AuthGuard } from 'src/auth/guards/auth/auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles/roles.guard';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 @SkipThrottle()
 @Controller('offices')
@@ -53,13 +53,20 @@ export class OfficesController {
     return this.officesService.changeStatusActive(id, updateOfficeDto);
   }
 
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Get('list')
   @RoleProtected(ValidRoles.client, ValidRoles.admin, ValidRoles.assessor)
   @UseGuards(AuthGuard, RolesGuard)
   findAll() {
     return this.officesService.findAllOffices();
   }
-  //TODO PENDIENTE POR HACER, VER EN FRONTEND
+
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @Get('list-public')
+  findAllPublic() {
+    return this.officesService.findAllOffices();
+  }
+
   @Get('by/pairs')
   @RoleProtected(ValidRoles.client, ValidRoles.admin, ValidRoles.assessor)
   @UseGuards(AuthGuard, RolesGuard)

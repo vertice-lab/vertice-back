@@ -9,6 +9,7 @@ import {
   sendEmailTemplate,
   sendOtpEmailTemplate,
   sendOtpForgotPasswordTemplate,
+  sendDeleteAccountTemplate,
 } from 'src/auth/emails/emails';
 import { Resend } from 'resend';
 import { ConfigService } from '@nestjs/config';
@@ -75,6 +76,20 @@ export class EmailServiceService {
         `Hola, ${email}`,
         email,
         sendEmailChangePassword({ email: email, token }),
+      );
+    } catch (error) {
+      this.logger.error(`Email sending failed: ${error.message}`);
+      throw new InternalServerErrorException('Email sending failed');
+    }
+  }
+
+  async sendDeleteAccountEmail(email: string, token: string) {
+    try {
+      await this.emailConfig(
+        'support',
+        'Eliminar cuenta permanentemente - Vértice',
+        email,
+        sendDeleteAccountTemplate({ email, token }),
       );
     } catch (error) {
       this.logger.error(`Email sending failed: ${error.message}`);

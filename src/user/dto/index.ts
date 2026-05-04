@@ -8,3 +8,4 @@ export { ChangeRoleDto } from './change-role.dto';
 export { SetActiveDto } from './set-active.dto';
 export { ResetPasswordDto } from './reset-password.dto';
 export { UserResponseDto } from './user-response.dto';
+export { ConfirmDeleteAccountDto } from './confirm-delete.dto';

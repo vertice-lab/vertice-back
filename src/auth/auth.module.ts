@@ -15,6 +15,6 @@ import { UserService } from 'src/user/services/user/user.service';
     UserService,
     EncryptService,
   ],
-  exports: [EncryptService],
+  exports: [EncryptService, EmailServiceService],
 })
 export class AuthModule {}

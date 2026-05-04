@@ -23,12 +23,18 @@ import { PaginatedResponse } from 'src/common/interfaces/paginated-response.inte
 import { Roles } from 'src/auth/interfaces/enums/roles';
 import { CreateRoleDto } from 'src/user/dto/create-role.dto';
 import { AssessorStatus } from 'src/ticket/enums/ticket-status.enum';
+import { EmailServiceService } from 'src/auth/services/email-service/email-service.service';
+import { generateRandomCode } from 'src/common/utils/random-code';
+import { ConfirmDeleteAccountDto } from '../../dto';
 
 @Injectable()
 export class UserService implements OnModuleInit {
   private readonly logger = new Logger(UserService.name);
 
-  constructor(private prisma: PrismaClientService) {}
+  constructor(
+    private prisma: PrismaClientService,
+    private emailService: EmailServiceService,
+  ) {}
 
   async onModuleInit() {
     this.logger.log('Restableciendo estado de conexión de todos los usuarios a offline (Limpieza de reinicio)...');
@@ -483,5 +489,113 @@ export class UserService implements OnModuleInit {
     });
 
     return { ok: true, msg: 'Contraseña reseteada exitosamente' };
+  }
+
+  async requestDeleteAccount(userId: string): Promise<{ ok: true; msg: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user.active) throw new BadRequestException('Usuario inactivo');
+
+    const deleteToken = generateRandomCode();
+
+    // Guardar el token en la BD (se asume que el user.token no se usa para otra cosa simultánea)
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { token: deleteToken },
+    });
+
+    await this.emailService.sendDeleteAccountEmail(user.email, deleteToken);
+
+    return { ok: true, msg: 'Se han enviado las instrucciones al correo' };
+  }
+
+  async validateDeleteToken(userId: string, token: string): Promise<{ valid: true; requiresPassword: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { token },
+      include: { providers: true },
+    });
+
+    if (!user || user.id !== userId) {
+      throw new NotFoundException('El token es inválido o ha expirado');
+    }
+
+    const hasGoogleProvider = user.providers.some(p => p.provider === 'google');
+
+    return { valid: true, requiresPassword: !hasGoogleProvider };
+  }
+
+  async confirmDeleteAccount(userId: string, confirmDto: ConfirmDeleteAccountDto): Promise<{ ok: true; msg: string }> {
+    const { token, password } = confirmDto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { token },
+      include: { providers: true },
+    });
+
+    if (!user || user.id !== userId) {
+      throw new NotFoundException('El token es inválido o ha expirado');
+    }
+
+    const hasGoogleProvider = user.providers.some(p => p.provider === 'google');
+
+    if (!hasGoogleProvider) {
+      if (!password) {
+        throw new BadRequestException('La contraseña es requerida');
+      }
+      const isPasswordValid = await argon2.verify(user.password, password);
+      if (!isPasswordValid) {
+        throw new BadRequestException('La contraseña es incorrecta');
+      }
+    }
+
+    // Anonimización fuerte
+    const randomHash = await argon2.hash(Math.random().toString(36).slice(-16));
+    const deletedEmail = `deleted_user_${user.id.substring(0, 8)}@deleted.vertice.com`;
+
+    await this.prisma.$transaction(async (tx) => {
+      // Desvincular de equipos si es manager o miembro
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          active: false,
+          online: false,
+          kycStatus: KycStatus.NOT_STARTED,
+          email: deletedEmail,
+          name: 'Usuario',
+          lastName: 'Eliminado',
+          password: randomHash,
+          token: null, // Limpiar el token
+          image: null,
+          teamId: null,
+        },
+      });
+
+      // Borrar información personal si existe
+      const hasInfo = await tx.informationUser.findUnique({ where: { userId: user.id } });
+      if (hasInfo) {
+        await tx.informationUser.delete({ where: { userId: user.id } });
+      }
+
+      // Borrar privacidad
+      const hasPrivacy = await tx.privacy.findUnique({ where: { userId: user.id } });
+      if (hasPrivacy) {
+        await tx.privacy.delete({ where: { userId: user.id } });
+      }
+
+      // Borrar seguridad
+      const hasSecurity = await tx.security.findUnique({ where: { userId: user.id } });
+      if (hasSecurity) {
+        await tx.security.delete({ where: { userId: user.id } });
+      }
+
+      // Desactivar notificaciones u otras PII opcionalmente
+      await tx.notification.deleteMany({ where: { userId: user.id } });
+      await tx.provider.deleteMany({ where: { userId: user.id } });
+    });
+
+    return { ok: true, msg: 'Cuenta eliminada permanentemente' };
   }
 }

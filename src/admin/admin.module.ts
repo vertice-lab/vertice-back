@@ -10,8 +10,10 @@ import { CurrencyRateHistoryService } from './service/currency-rate-history/curr
 import { EncryptService } from 'src/auth/services/encrypt/encrypt.service';
 import { CurrencyPaymentMethodController } from './controllers/currency-payment-method/currency-payment-method.controller';
 import { CurrencyPaymentMethodService } from './service/currency-payment-method/currency-payment-method.service';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
+  imports: [AuthModule],
   controllers: [AdminController, CurrencyPaymentMethodController],
   providers: [
     CurrencyRateService,
