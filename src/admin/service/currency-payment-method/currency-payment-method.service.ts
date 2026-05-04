@@ -23,7 +23,7 @@ export class CurrencyPaymentMethodService {
   constructor(
     private prisma: PrismaClientService,
     private userService: UserService,
-  ) {}
+  ) { }
 
   // PUBLIC - Get all currency payment methods
   async getAllCurrencyPaymentMethods() {
@@ -470,7 +470,6 @@ export class CurrencyPaymentMethodService {
     }
   }
 
-  // PRIVATE - Delete currency payment method (admin only)
   async deleteCurrencyPaymentMethod(id: string, userAuthAdmin: UserAuth) {
     try {
       const { sub, iat, exp } = userAuthAdmin as {
@@ -490,6 +489,7 @@ export class CurrencyPaymentMethodService {
       const currencyPaymentMethod =
         await this.prisma.currencyPaymentMethod.findUnique({
           where: { id },
+          include: { ourPaymentMethod: true },
         });
 
       if (!currencyPaymentMethod) {
@@ -498,11 +498,19 @@ export class CurrencyPaymentMethodService {
         );
       }
 
-      await this.prisma.currencyPaymentMethod.delete({ where: { id } });
+      const { count } = await this.prisma.currencyPaymentMethod.deleteMany({
+        where: { ourPaymentMethodId: currencyPaymentMethod.ourPaymentMethodId },
+      });
+
+      const methodName =
+        currencyPaymentMethod.ourPaymentMethod?.financialInstitutionName
+
+
 
       return {
         ok: true,
-        msg: 'Método de pago de moneda eliminado correctamente',
+        msg: `"${methodName}" eliminado de ${count} tasa(s) de cambio`,
+        deletedCount: count,
       };
     } catch (error) {
       if (

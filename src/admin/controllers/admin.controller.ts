@@ -195,6 +195,14 @@ export class AdminController {
     return this.ourPaymentMethodService.getAllActivePaymentMethods();
   }
 
+  // GET - Lista métodos de pago filtrados por país
+  @Get('our-payment-method-list/by-country/:country')
+  @RoleProtected(ValidRoles.admin)
+  @UseGuards(AuthGuard, RolesGuard)
+  getPaymentMethodsByCountry(@Param('country') country: string) {
+    return this.ourPaymentMethodService.getPaymentMethodsByCountry(country);
+  }
+
   // GET - Obtiene un método de pago por ID o País
   @Get('our-payment-method/:id')
   @RoleProtected(ValidRoles.admin, ValidRoles.assessor, ValidRoles.client)

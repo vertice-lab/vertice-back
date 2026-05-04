@@ -68,6 +68,35 @@ export class OurPaymentMethodService {
     }
   }
 
+  // PUBLIC - Get payment methods by country
+  async getPaymentMethodsByCountry(country: string) {
+    try {
+      const paymentMethods = await this.prisma.ourPaymentMethod.findMany({
+        where: {
+          country: {
+            equals: country,
+            mode: 'insensitive',
+          },
+          isActive: true,
+        },
+        orderBy: [
+          { type: 'asc' },
+          { financialInstitutionName: 'asc' },
+        ],
+      });
+
+      return {
+        ok: true,
+        data: paymentMethods,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching payment methods by country', error);
+      throw new InternalServerErrorException(
+        'Error al obtener los métodos de pago por país',
+      );
+    }
+  }
+
   // PUBLIC - Get payment method by ID or Country
   async getPaymentMethodByIdOrCountry(idOrCountry: string) {
     try {
