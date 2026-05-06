@@ -35,7 +35,7 @@ export class EmailServiceService {
         tempRegister.email,
         sendEmailTemplate({ email: tempRegister.email, token }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Email sending failed: ${error.message}`);
       throw new InternalServerErrorException('Email sending failed');
     }
@@ -49,7 +49,7 @@ export class EmailServiceService {
         email,
         sendOtpEmailTemplate({ email, token }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Email sending failed: ${error.message}`);
       throw new InternalServerErrorException('Email sending failed');
     }
@@ -63,7 +63,7 @@ export class EmailServiceService {
         email,
         sendOtpForgotPasswordTemplate({ email, token }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Email sending failed: ${error.message}`);
       throw new InternalServerErrorException('Email sending failed');
     }
@@ -77,7 +77,7 @@ export class EmailServiceService {
         email,
         sendEmailChangePassword({ email: email, token }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Email sending failed: ${error.message}`);
       throw new InternalServerErrorException('Email sending failed');
     }
@@ -91,7 +91,7 @@ export class EmailServiceService {
         email,
         sendDeleteAccountTemplate({ email, token }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Email sending failed: ${error.message}`);
       throw new InternalServerErrorException('Email sending failed');
     }
@@ -104,7 +104,7 @@ export class EmailServiceService {
     html: string,
   ) {
     const { data, error } = await this.resend.emails.send({
-      from: `${type}@verticexchange.com`,
+      from: `${type}@verticeapp.io`,
       to: [to],
       subject: subject,
       html: html,

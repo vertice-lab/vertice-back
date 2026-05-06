@@ -143,11 +143,11 @@ export class SeedService {
 
     // Create admin user
     const adminUser = await this.prisma.user.upsert({
-      where: { email: 'jose.rodriguez@verticexchange.com' },
+      where: { email: 'jose.rodriguez@verticeapp.io' },
       create: {
         name: 'Jose',
         lastName: 'Rodriguez',
-        email: 'jose.rodriguez@verticexchange.com',
+        email: 'jose.rodriguez@verticeapp.io',
         password: hashedAdmin,
         verified: true,
         active: true,
@@ -191,11 +191,11 @@ export class SeedService {
 
     // Create assessor user
     const assessorUser = await this.prisma.user.upsert({
-      where: { email: 'jesus.user@verticexchange.com' },
+      where: { email: 'jesus.user@verticeapp.io' },
       create: {
         name: 'Jesus',
         lastName: 'User',
-        email: 'jesus.user@verticexchange.com',
+        email: 'jesus.user@verticeapp.io',
         password: hashedAssessor,
         verified: true,
         active: true,
@@ -240,11 +240,11 @@ export class SeedService {
     // Create client users
     const clientUsers = await Promise.all([
       this.prisma.user.upsert({
-        where: { email: 'jesus.client@verticexchange.com' },
+        where: { email: 'jesus.client@verticeapp.io' },
         create: {
           name: 'Jesus 2',
           lastName: 'User 2',
-          email: 'jesus.client@verticexchange.com',
+          email: 'jesus.client@verticeapp.io',
           password: hashedClient,
           verified: true,
           active: true,
@@ -286,11 +286,11 @@ export class SeedService {
         },
       }),
       this.prisma.user.upsert({
-        where: { email: 'jesus.client2@verticexchange.com' },
+        where: { email: 'jesus.client2@verticeapp.io' },
         create: {
           name: 'Jesus 3',
           lastName: 'User 3',
-          email: 'jesus.client2@verticexchange.com',
+          email: 'jesus.client2@verticeapp.io',
           password: hashedClient,
           verified: true,
           active: true,
