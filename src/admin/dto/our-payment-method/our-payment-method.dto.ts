@@ -65,6 +65,10 @@ export class CreateOurPaymentMethodDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
+  fileUrl?: string;
 }
 
 export class UpdateOurPaymentMethodDto {
@@ -125,6 +129,10 @@ export class UpdateOurPaymentMethodDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
+  fileUrl?: string;
 }
 
 export class UpdateIsActiveDto {

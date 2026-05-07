@@ -290,6 +290,7 @@ model OurPaymentMethod {
   bankAccountType          String?
   addressOrDetails         String?
   additionalNotes          String?
+  fileUrl                  String?
   isActive                 Boolean                 @default(true)
   userId                   String
   createdAt                DateTime                @default(now())
