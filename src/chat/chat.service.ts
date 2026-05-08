@@ -163,71 +163,74 @@ export class ChatService {
       match: (country, inst) =>
         country === 'ARGENTINA' || inst.includes('NARANJA X'),
       format: (bank) => `🏦 **Banco:** ${bank.financialInstitutionName}
-            🔢 **CBU:** ${bank.accountNumberOrCode || 'N/A'}
-            🏷️ **Alias:** ${bank.aliasOrReference || 'N/A'}
-            📄 **Tipo de Cuenta:** ${bank.bankAccountType || 'N/A'}
-            👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
-            🆔 **CUIL:** ${bank.accountHolderId || 'N/A'}`,
+🔢 **CBU:** ${bank.accountNumberOrCode || 'N/A'}
+🏷️ **Alias:** ${bank.aliasOrReference || 'N/A'}
+📄 **Tipo de Cuenta:** ${bank.bankAccountType || 'N/A'}
+👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
+🆔 **CUIL:** ${bank.accountHolderId || 'N/A'}`,
     },
     {
       match: (country, inst) => country === 'SPAIN' || inst.includes('NICKEL'),
-      format: (bank) => `
-            🔢 **Número de Cuenta:** ${bank.accountNumberOrCode || 'N/A'}
-            👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}`,
+      format: (bank) => `🔢 **Número de Cuenta:** ${bank.accountNumberOrCode || 'N/A'}
+👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}`,
     },
     {
       match: (_, inst) =>
         inst.includes('PAGO MÓVIL') || inst.includes('PAGO MOVIL'),
-      format: (bank) => `
-            🏦 **Banco:** ${bank.financialInstitutionName}
-            🆔 **ID/Cédula:** ${bank.accountHolderId || 'N/A'}
-            📱 **Número de Teléfono:** ${bank.phoneNumber || 'N/A'}`,
+      format: (bank) => `🏦 **Banco:** ${bank.financialInstitutionName}
+🆔 **ID/Cédula:** ${bank.accountHolderId || 'N/A'}
+📱 **Número de Teléfono:** ${bank.phoneNumber || 'N/A'}`,
     },
     {
       match: (country, inst) =>
         country === 'COLOMBIA' && inst.includes('BANCOLOMBIA'),
-      format: (bank) => `
-                👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
-                📄 **Tipo de Cuenta:** ${bank.bankAccountType || 'N/A'}
-                🔢 **Número de Cuenta:** ${bank.accountNumberOrCode || 'N/A'}
-                🆔 **Pasaporte/Documento:** ${bank.accountHolderId || 'N/A'}`,
+      format: (bank) => `👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
+📄 **Tipo de Cuenta:** ${bank.bankAccountType || 'N/A'}
+🔢 **Número de Cuenta:** ${bank.accountNumberOrCode || 'N/A'}
+🆔 **Pasaporte/Documento:** ${bank.accountHolderId || 'N/A'}`,
     },
     {
       match: (country, inst) =>
         country === 'COLOMBIA' && inst.includes('NEQUI'),
-      format: (bank) => `
-                📱 **Número de Teléfono:** ${bank.phoneNumber || 'N/A'}
-                👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}`,
+      format: (bank) => `📱 **Número de Teléfono:** ${bank.phoneNumber || 'N/A'}
+👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}`,
     },
     {
       match: (country, _) => country === 'COLOMBIA',
-      format: (bank) => `
-                🏦 **Banco:** ${bank.financialInstitutionName}
-                👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
-                🔢 **Número de Cuenta:** ${bank.accountNumberOrCode || 'N/A'}`,
+      format: (bank) => `🏦 **Banco:** ${bank.financialInstitutionName}
+👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
+🔢 **Número de Cuenta:** ${bank.accountNumberOrCode || 'N/A'}`,
     },
     {
-      match: (_, inst) => inst.includes('BINANCE'),
-      format: (bank) => `
-            📧 **Email:** ${bank.emailAddress || 'N/A'}
-            🏷️ **Alias:** ${bank.aliasOrReference || 'N/A'}`,
+      match: (_, inst) => inst.includes('TRC20') || inst.includes('BEP20'),
+      format: (bank) => `🏦 **Red:** ${bank.financialInstitutionName}
+🔗 **Dirección (Wallet):** ${bank.accountNumberOrCode || bank.aliasOrReference || 'N/A'}`,
+    },
+    {
+      match: (_, inst) => inst === 'BINANCE',
+      format: (bank) => `📧 **Email:** ${bank.emailAddress || 'N/A'}
+🏷️ **Alias:** ${bank.aliasOrReference || 'N/A'}`,
     },
     {
       match: (_, inst) => inst.includes('ZELLE') || inst.includes('WISE'),
-      format: (bank) => `
-            📧 **Email:** ${bank.emailAddress || 'N/A'}
-            👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
-            📱 **Número de Teléfono:** ${bank.phoneNumber || 'N/A'}`,
+      format: (bank) => `📧 **Email:** ${bank.emailAddress || 'N/A'}
+👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
+📱 **Número de Teléfono:** ${bank.phoneNumber || 'N/A'}`,
+    },
+    {
+      match: (_, inst) => inst.includes('PAYPAL'),
+      format: () => `Para procesar tu pago a través de PayPal, por favor compártenos los siguientes datos:
+👤 **Nombre completo:**
+📧 **Correo electrónico vinculado a PayPal:**`,
     },
   ];
 
   private formatDefaultDetails(bank: OurPaymentMethod): string {
-    return `
-            🏦 **Banco:** ${bank.financialInstitutionName}
-            👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
-            🆔 **ID/Cédula:** ${bank.accountHolderId || 'N/A'}
-            🔢 **Número de Cuenta/Teléfono:** ${bank.accountNumberOrCode || bank.phoneNumber || 'N/A'}
-            📧 **Email:** ${bank.emailAddress || 'N/A'}`;
+    return `🏦 **Banco:** ${bank.financialInstitutionName}
+👤 **Nombre del Titular:** ${bank.accountHolderName || 'N/A'}
+🆔 **ID/Cédula:** ${bank.accountHolderId || 'N/A'}
+🔢 **Número de Cuenta/Teléfono:** ${bank.accountNumberOrCode || bank.phoneNumber || 'N/A'}
+📧 **Email:** ${bank.emailAddress || 'N/A'}`;
   }
 
   async sendWelcomeMessage(ticketNumber: string) {
@@ -290,11 +293,18 @@ export class ChatService {
       ? matchingRule.format(bank)
       : this.formatDefaultDetails(bank);
 
-    const welcomeText = `Hola ${clientName}, bienvenido al chat de soporte para tu ticket ${ticketNumber}. Mi nombre es ${ticket.assessor?.name || 'Asesor'} y estaré asistiendo con tu consulta:
-        ${details}
-        Una vez enviando la imagen del comprobante de pago, por favor espera a que el asesor revise la información y se comunique contigo a través de este chat. ¡Gracias por tu paciencia!`;
+    const welcomeText = `Hola ${clientName}, bienvenido. Para proceder con su ticket, por favor realice el pago mediante los siguientes pasos, según el método de pago seleccionado:
 
-    return await this.saveMessage(ticketNumber, ticket.assessorId, welcomeText);
+${details}
+
+⚠️ **Importante:** Solo realizamos transferencias a cuentas cuyo titular sea el mismo usuario registrado en nuestra plataforma.
+
+Una vez enviando la imagen del comprobante de pago, por favor espera a que el asesor revise la información y se comunique contigo a través de este chat. ¡Gracias por tu paciencia!`;
+
+    const fileUrl = institution.includes('BINANCE') && bank.fileUrl ? bank.fileUrl : undefined;
+    const fileType = fileUrl ? 'image/png' : undefined;
+
+    return await this.saveMessage(ticketNumber, ticket.assessorId, welcomeText, fileUrl, fileType);
   }
 
   async autoFinalizeTicket(ticketNumber: string) {

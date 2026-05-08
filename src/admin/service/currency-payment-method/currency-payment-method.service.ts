@@ -101,7 +101,7 @@ export class CurrencyPaymentMethodService {
         ARS: 'Argentina',
         CLP: 'Chile',
         PEN: 'Perú',
-        USDT: 'Ee.uu',
+        USDT: 'Global',
         COP: 'Colombia',
         EUR: 'España',
       };
@@ -129,11 +129,11 @@ export class CurrencyPaymentMethodService {
           if (!matchesCountry) return false;
 
           if (currencyUpper === 'USDT') {
-            return institutionName === 'binance';
+            return institutionName.includes('binance');
           }
 
           if (currencyUpper === 'USD') {
-            return institutionName !== 'binance';
+            return !institutionName.includes('binance');
           }
 
           return true;
