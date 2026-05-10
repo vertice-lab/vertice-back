@@ -400,13 +400,15 @@ export class OurPaymentMethodService {
         ok: true,
         msg: `Método de pago ${paymentMethod.financialInstitutionName} eliminado correctamente`,
       };
-    } catch (error) {
+    } catch (error: any) {
       if (
         error instanceof NotFoundException ||
-        error instanceof UnauthorizedException
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
       ) {
         throw error;
       }
+
       this.logger.error('Error deleting payment method', error);
       throw new InternalServerErrorException(
         'Error al eliminar el método de pago',

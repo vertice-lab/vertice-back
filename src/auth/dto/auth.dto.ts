@@ -104,3 +104,22 @@ export class UpdatePasswordDto {
 }
 
 export class UpdateAuthDto extends PartialType(RegisterAuthDto) { }
+
+export class SupportFormDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  subject: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(10)
+  message: string;
+}

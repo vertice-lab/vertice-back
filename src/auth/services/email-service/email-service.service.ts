@@ -10,6 +10,7 @@ import {
   sendOtpEmailTemplate,
   sendOtpForgotPasswordTemplate,
   sendDeleteAccountTemplate,
+  sendSupportTemplate,
 } from 'src/auth/emails/emails';
 import { Resend } from 'resend';
 import { ConfigService } from '@nestjs/config';
@@ -97,18 +98,41 @@ export class EmailServiceService {
     }
   }
 
+  async sendSupportEmailToCorporate(supportDto: { name: string; email: string; subject: string; message: string; }) {
+    try {
+      const htmlContent = sendSupportTemplate(supportDto);
+      await this.emailConfig(
+        'support',
+        `Nuevo ticket de soporte: ${supportDto.subject}`,
+        'soporte@verticeapp.io', // Cambia a tu correo corporativo final si es diferente
+        htmlContent,
+        supportDto.email,
+      );
+    } catch (error: any) {
+      this.logger.error(`Email sending failed: ${error.message}`);
+      throw new InternalServerErrorException('Email sending failed');
+    }
+  }
+
   private async emailConfig(
     type: string,
     subject: string,
     to: string,
     html: string,
+    replyTo?: string,
   ) {
-    const { data, error } = await this.resend.emails.send({
+    const payload: any = {
       from: `${type}@verticeapp.io`,
       to: [to],
       subject: subject,
       html: html,
-    });
+    };
+
+    if (replyTo) {
+      payload.reply_to = replyTo;
+    }
+
+    const { data, error } = await this.resend.emails.send(payload);
 
     if (error) {
       this.logger.error(`Resend error: ${JSON.stringify(error)}`);
@@ -118,3 +142,4 @@ export class EmailServiceService {
     return data;
   }
 }
+

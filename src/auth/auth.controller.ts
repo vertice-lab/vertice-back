@@ -21,6 +21,7 @@ import {
   TokenAuthDto,
   UpdatePasswordDto,
   UserEmailAuthDto,
+  SupportFormDto,
 } from './dto/auth.dto';
 import { AuthGuard } from './guards/auth/auth.guard';
 import {
@@ -33,7 +34,7 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 @SkipThrottle()
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('temp')
   tempUser(@Body() tempRegister: TempRegisterAuthDto) {
@@ -143,5 +144,83 @@ export class AuthController {
   @UseGuards(AuthGuard, RolesGuard)
   async getProfileManager(@Request() req) {
     return this.authService.getProfileManager(req);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('support/contact')
+  async sendSupportTicket(@Body() supportFormDto: SupportFormDto) {
+    return this.authService.sendSupportTicket(supportFormDto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
+  @Post('password/request-otp')
+  async requestChangePasswordOtp(@Request() req: any) {
+    const profile = await this.authService.getProfileClient(req);
+    if (!profile || !profile.user?.email) {
+      throw new UnauthorizedException('No se pudo obtener el email del usuario');
+    }
+
+    if (profile.user.providers && profile.user.providers.length > 0) {
+      throw new BadRequestException(
+        'Los usuarios registrados con proveedores externos no pueden cambiar su contraseña directamente.',
+      );
+    }
+
+    return this.authService.requestChangePasswordOtp(profile.user.email);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
+  @Post('password/verify-otp')
+  async verifyChangePasswordOtp(
+    @Request() req: any,
+    @Body() body: { token: string },
+  ) {
+    if (!body.token) throw new BadRequestException('Token requerido');
+    const profile = await this.authService.getProfileClient(req);
+    if (!profile || !profile.user?.email) {
+      throw new UnauthorizedException('No se pudo obtener el email del usuario');
+    }
+
+    if (profile.user.providers && profile.user.providers.length > 0) {
+      throw new BadRequestException(
+        'Los usuarios registrados con proveedores externos no pueden realizar esta acción.',
+      );
+    }
+
+    return this.authService.verifyChangePasswordOtp(
+      profile.user.email,
+      body.token,
+    );
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
+  @Post('password/update')
+  async updatePasswordAuthenticated(
+    @Request() req: any,
+    @Body() body: { newPassword: string },
+  ) {
+    if (!body.newPassword)
+      throw new BadRequestException('Nueva contraseña requerida');
+    const profile = await this.authService.getProfileClient(req);
+    if (!profile || !profile.user?.email) {
+      throw new UnauthorizedException('No se pudo obtener el email del usuario');
+    }
+
+    if (profile.user.providers && profile.user.providers.length > 0) {
+      throw new BadRequestException(
+        'Los usuarios registrados con proveedores externos no pueden cambiar su contraseña directamente.',
+      );
+    }
+
+    return this.authService.updatePasswordAuthenticated(
+      profile.user.email,
+      body.newPassword,
+    );
   }
 }

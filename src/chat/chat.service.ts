@@ -266,7 +266,6 @@ export class ChatService {
         user: {
           select: { name: true, lastName: true },
         },
-        ourPaymentMethod: true,
         assessor: true,
       },
     });
@@ -275,14 +274,14 @@ export class ChatService {
       !ticket ||
       !ticket.chat ||
       !ticket.assessorId ||
-      !ticket.ourPaymentMethod
+      !ticket.paymentMethodSnapshot
     )
       return null;
 
     if (ticket.chat.messages.length > 0) return null;
 
     const clientName = ticket.user.name || 'Client';
-    const bank = ticket.ourPaymentMethod;
+    const bank = (typeof ticket.paymentMethodSnapshot === 'string' ? JSON.parse(ticket.paymentMethodSnapshot) : ticket.paymentMethodSnapshot) as any;
     const country = bank.country?.toUpperCase() || '';
     const institution = bank.financialInstitutionName.toUpperCase();
 

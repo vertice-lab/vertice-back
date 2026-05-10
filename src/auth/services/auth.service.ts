@@ -16,6 +16,7 @@ import {
   UserEmailAuthDto,
   GoogleCallbackDto,
   UpdatePasswordDto,
+  SupportFormDto,
 } from '../dto/auth.dto';
 import { EmailServiceService } from './email-service/email-service.service';
 import { PrismaClientService } from 'src/prisma-client/prisma-client.service';
@@ -834,6 +835,115 @@ export class AuthService {
         throw error;
       }
       throw new InternalServerErrorException('Error al actualizar contraseña');
+    }
+  }
+
+  async requestChangePasswordOtp(email: string) {
+    const newOtp = generateOTP();
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+        select: { email: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      await this.prisma.user.update({
+        where: { email: user.email },
+        data: { token: newOtp },
+      });
+
+      await this.emailService.sendOtpForgotPasswordEmail(user.email, newOtp);
+
+      return { ok: true, message: 'Código de seguridad enviado a tu correo' };
+    } catch (error: any) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof UnauthorizedException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        `Error al enviar código: ${error.message}`,
+      );
+    }
+  }
+
+  async verifyChangePasswordOtp(email: string, token: string) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+        select: { email: true, token: true },
+      });
+
+      if (!user?.token || user.token !== token) {
+        throw new BadRequestException(
+          'El código introducido es incorrecto o ha expirado.',
+        );
+      }
+
+      return {
+        ok: true,
+        email: user.email,
+        message: 'Código verificado correctamente',
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al verificar código');
+    }
+  }
+
+  async updatePasswordAuthenticated(email: string, newPassword: string) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+        select: { email: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      const hashedPassword = await argon2.hash(newPassword);
+
+      await this.prisma.user.update({
+        where: { email },
+        data: {
+          token: null,
+          password: hashedPassword,
+        },
+      });
+
+      return { ok: true, message: 'Contraseña actualizada correctamente' };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al actualizar contraseña');
+    }
+  }
+
+  async sendSupportTicket(supportFormDto: SupportFormDto) {
+    try {
+      await this.emailService.sendSupportEmailToCorporate(supportFormDto);
+
+      return {
+        ok: true,
+        message: 'Email enviado correctamente',
+      };
+    } catch (error) {
+      throw new InternalServerErrorException('No se pudo enviar el ticket de soporte');
     }
   }
 }

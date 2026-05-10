@@ -33,52 +33,67 @@ export class SeedService {
 
   private async seedRoles() {
     await this.prisma.$transaction(
-      initialData.roles.map((role) =>
-        this.prisma.role.upsert({
-          where: { name: role.name },
-          create: role,
-          update: { level: role.level },
-        }),
-      ),
+      async (tx) => {
+        await Promise.all(
+          initialData.roles.map((role) =>
+            tx.role.upsert({
+              where: { name: role.name },
+              create: role,
+              update: { level: role.level },
+            }),
+          )
+        );
+      },
+      { maxWait: 20000, timeout: 60000 }
     );
   }
 
   private async seedCountries() {
     await this.prisma.$transaction(
-      countries.map((c) =>
-        this.prisma.country.upsert({
-          where: { country_code: c.country_code },
-          create: c,
-          update: { country_name: c.country_name },
-        }),
-      ),
+      async (tx) => {
+        await Promise.all(
+          countries.map((c) =>
+            tx.country.upsert({
+              where: { country_code: c.country_code },
+              create: c,
+              update: { country_name: c.country_name },
+            }),
+          )
+        );
+      },
+      { maxWait: 20000, timeout: 60000 }
     );
   }
 
   private async seedCurrencyBaseRates() {
     await this.prisma.$transaction(
-      initialData.currencyBaseRate.map((c) =>
-        this.prisma.currencyBaseRate.upsert({
-          where: { currency: c.currency },
-          create: {
-            ...c,
-            isCripto: c.isCripto ?? false,
-          },
-          update: {
-            countryName: c.countryName,
-            name: c.name,
-            buyRate: c.buyRate,
-            sellRate: c.sellRate,
-            marketRate: c.marketRate,
-            dolarBcvRate: c.dolarBcvRate,
-            eurBcvRate: c.eurBcvRate,
-            isActive: c.isActive,
-            isBase: c.isBase,
-            isVolatile: c.isVolatile,
-            isCripto: c.isCripto ?? false,
-          },
-        }),
-      ),
+      async (tx) => {
+        await Promise.all(
+          initialData.currencyBaseRate.map((c) =>
+            tx.currencyBaseRate.upsert({
+              where: { currency: c.currency },
+              create: {
+                ...c,
+                isCripto: c.isCripto ?? false,
+              },
+              update: {
+                countryName: c.countryName,
+                name: c.name,
+                buyRate: c.buyRate,
+                sellRate: c.sellRate,
+                marketRate: c.marketRate,
+                dolarBcvRate: c.dolarBcvRate,
+                eurBcvRate: c.eurBcvRate,
+                isActive: c.isActive,
+                isBase: c.isBase,
+                isVolatile: c.isVolatile,
+                isCripto: c.isCripto ?? false,
+              },
+            }),
+          )
+        );
+      },
+      { maxWait: 20000, timeout: 60000 }
     );
   }
 
@@ -143,11 +158,11 @@ export class SeedService {
 
     // Create admin user
     const adminUser = await this.prisma.user.upsert({
-      where: { email: 'jose.rodriguez@verticeapp.io' },
+      where: { email: 'admin@verticeapp.io' },
       create: {
         name: 'Jose',
         lastName: 'Rodriguez',
-        email: 'jose.rodriguez@verticeapp.io',
+        email: 'admin@verticeapp.io',
         password: hashedAdmin,
         verified: true,
         active: true,
@@ -155,7 +170,7 @@ export class SeedService {
         countryCode: country.country_code,
         information: {
           create: {
-            phone: '+5491112345678',
+            phone: '+5497732345678',
             dateBirth: '1990-01-01',
             acceptedTerms: true,
             receiveMarketingEmails: false,
@@ -173,13 +188,13 @@ export class SeedService {
         information: {
           upsert: {
             create: {
-              phone: '+5491112345678',
+              phone: '+54919175678',
               dateBirth: '1990-01-01',
               acceptedTerms: true,
               receiveMarketingEmails: false,
             },
             update: {
-              phone: '+5491112345678',
+              phone: '+5491793145678',
               dateBirth: '1990-01-01',
               acceptedTerms: true,
               receiveMarketingEmails: false,
@@ -203,7 +218,7 @@ export class SeedService {
         countryCode: country.country_code,
         information: {
           create: {
-            phone: '+5491198765432',
+            phone: '+549134792532',
             dateBirth: '1992-05-15',
             acceptedTerms: true,
             receiveMarketingEmails: true,
@@ -221,13 +236,13 @@ export class SeedService {
         information: {
           upsert: {
             create: {
-              phone: '+5491198765432',
+              phone: '+549143971432',
               dateBirth: '1992-05-15',
               acceptedTerms: true,
               receiveMarketingEmails: true,
             },
             update: {
-              phone: '+5491198765432',
+              phone: '+549143971432',
               dateBirth: '1992-05-15',
               acceptedTerms: true,
               receiveMarketingEmails: true,
@@ -252,7 +267,7 @@ export class SeedService {
           countryCode: country.country_code,
           information: {
             create: {
-              phone: '+5491123456789',
+              phone: '+5491136476789',
               dateBirth: '1995-03-20',
               acceptedTerms: true,
               receiveMarketingEmails: true,
@@ -270,13 +285,13 @@ export class SeedService {
           information: {
             upsert: {
               create: {
-                phone: '+5491123456789',
+                phone: '+54913547956789',
                 dateBirth: '1995-03-20',
                 acceptedTerms: true,
                 receiveMarketingEmails: true,
               },
               update: {
-                phone: '+5491123456789',
+                phone: '+5491793145456789',
                 dateBirth: '1995-03-20',
                 acceptedTerms: true,
                 receiveMarketingEmails: true,
@@ -298,7 +313,7 @@ export class SeedService {
           countryCode: country.country_code,
           information: {
             create: {
-              phone: '+5491134567890',
+              phone: '+549146327890',
               dateBirth: '1998-07-10',
               acceptedTerms: true,
               receiveMarketingEmails: false,
@@ -316,13 +331,13 @@ export class SeedService {
           information: {
             upsert: {
               create: {
-                phone: '+5491134567890',
+                phone: '+247227272',
                 dateBirth: '1998-07-10',
                 acceptedTerms: true,
                 receiveMarketingEmails: false,
               },
               update: {
-                phone: '+5491134567890',
+                phone: '+002271446',
                 dateBirth: '1998-07-10',
                 acceptedTerms: true,
                 receiveMarketingEmails: false,

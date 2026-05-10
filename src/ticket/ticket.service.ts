@@ -334,6 +334,7 @@ export class TicketService {
             recipientId,
             currencyRateId: currencyRate.id,
             paymentMethodId: paymentMethodUsedId,
+            paymentMethodSnapshot: ourAccount as any,
             amountSent: quote.sendAmount,
             appliedRate: appliedRate,
             ticketType: ticketTypeValue,
@@ -405,7 +406,6 @@ export class TicketService {
           orderBy: { createdAt: 'desc' },
           include: {
             currencyRate: true,
-            ourPaymentMethod: true,
             recipient: true,
           },
         }),
@@ -431,13 +431,94 @@ export class TicketService {
     }
   }
 
+  async getUserSummary(userId: string) {
+    try {
+      const tickets = await this.prisma.ticket.findMany({
+        where: {
+          userId,
+          status: TicketStatus.SUCCESS,
+        },
+        include: {
+          currencyRate: true,
+        },
+      });
+
+      let totalAmountUSD = 0;
+      const totalTickets = tickets.length;
+
+      // Caché simple para evitar consultas repetidas de tasas en el mismo día/moneda
+      const rateCache = new Map<string, number | null>();
+
+      for (const ticket of tickets) {
+        const { amountSent, currencyRate, createdAt } = ticket;
+        const fromCurrency = currencyRate.fromCurrency;
+
+        if (fromCurrency === 'USD' || fromCurrency === 'USDT') {
+          totalAmountUSD += amountSent;
+          continue;
+        }
+
+        const dateKey = createdAt.toISOString().split('T')[0];
+        const cacheKey = `${fromCurrency}_${dateKey}`;
+        let usdRate = rateCache.get(cacheKey);
+
+        if (usdRate === undefined) {
+          const ratePair = await this.prisma.currencyRate.findUnique({
+            where: {
+              fromCurrency_toCurrency: {
+                fromCurrency,
+                toCurrency: 'USD',
+              },
+            },
+          });
+
+          if (ratePair) {
+            const history = await this.prisma.currencyRateHistory.findFirst({
+              where: {
+                currencyRateId: ratePair.id,
+                createdAt: { lte: createdAt },
+              },
+              orderBy: { createdAt: 'desc' },
+            });
+
+            usdRate = history ? history.buyRate : ratePair.buyRate;
+          } else {
+            usdRate = null;
+          }
+          rateCache.set(cacheKey, usdRate);
+        }
+
+        if (usdRate && usdRate > 0) {
+          const pairName = `${fromCurrency} → USD`;
+          const operation = this.CALCULATION_MAP[pairName] || '/_RATE';
+
+          const ticketUSD =
+            operation === '*_RATE' ? amountSent * usdRate : amountSent / usdRate;
+          totalAmountUSD += ticketUSD;
+        }
+      }
+
+      return {
+        ok: true,
+        summary: {
+          totalTickets,
+          totalAmountUSD: Number(totalAmountUSD.toFixed(2)),
+        },
+      };
+    } catch (error) {
+      console.error('Error en getUserSummary:', error);
+      throw new InternalServerErrorException(
+        'Error al calcular el resumen de tickets',
+      );
+    }
+  }
+
   async findOneTicketInfo(ticketNumber: string) {
     try {
       const ticket = await this.prisma.ticket.findUnique({
         where: { ticketNumber },
         include: {
           currencyRate: true,
-          ourPaymentMethod: true,
           recipient: {
             select: {
               firstName: true,
@@ -519,7 +600,6 @@ export class TicketService {
           orderBy: { createdAt: 'desc' },
           include: {
             currencyRate: true,
-            ourPaymentMethod: true,
             recipient: true,
           },
         }),
@@ -562,7 +642,6 @@ export class TicketService {
           orderBy: { createdAt: 'desc' },
           include: {
             currencyRate: true,
-            ourPaymentMethod: true,
             recipient: true,
           },
         }),
@@ -611,7 +690,6 @@ export class TicketService {
           orderBy: { createdAt: 'desc' },
           include: {
             currencyRate: true,
-            ourPaymentMethod: true,
             recipient: true,
           },
         }),
@@ -873,7 +951,14 @@ export class TicketService {
           }
         }
 
-        return { ...ticket, recipient: decryptedRecipient };
+        const mappedPaymentMethod = ticket.paymentMethodSnapshot || ticket.ourPaymentMethod;
+
+        return { 
+          ...ticket, 
+          recipient: decryptedRecipient,
+          ourPaymentMethod: mappedPaymentMethod,
+          paymentMethodSnapshot: undefined
+        };
       }),
     );
   }

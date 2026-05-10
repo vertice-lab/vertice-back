@@ -40,12 +40,15 @@ model User {
   bankAccounts                 BankAccount[]
   currencyRateHistories        CurrencyRateHistory[]
   information                  InformationUser?
-  privacy                      Privacy?
-  security                     Security?
   messages                     Message[]
+  notifications                Notification[]
   ourPaymentMethods            OurPaymentMethod[]
+  privacy                      Privacy?
   providers                    Provider[]
   receivedRatings              Review[]                    @relation("AssessorReviews")
+  security                     Security?
+  assignedSupportTickets       SupportTicket[]             @relation("AssignedSupport")
+  supportTickets               SupportTicket[]             @relation("UserSupport")
   managedTeam                  Team?                       @relation("TeamLeader")
   assignedTickets              Ticket[]                    @relation("AssessorTickets")
   tickets                      Ticket[]                    @relation("UserTickets")
@@ -54,9 +57,6 @@ model User {
   country                      Country?                    @relation(fields: [countryCode], references: [country_code])
   role                         Role                        @relation(fields: [roleId], references: [id])
   team                         Team?                       @relation("TeamMembers", fields: [teamId], references: [id])
-  notifications                Notification[]
-  supportTickets               SupportTicket[]             @relation("UserSupport")
-  assignedSupportTickets       SupportTicket[]             @relation("AssignedSupport")
 }
 
 model Team {
@@ -103,9 +103,8 @@ model InformationUser {
   documentNumber         String?
   documentType           String?
   postalCode             String?
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id])
 }
 
 model Privacy {
@@ -113,16 +112,14 @@ model Privacy {
   publicProfile Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
 }
 
 model Notification {
-  id      String  @id @default(uuid())
-  content String?
-  read    Boolean @default(false)
-
+  id            String   @id @default(uuid())
+  content       String?
+  read          Boolean  @default(false)
   emailAlert    Boolean  @default(false)
   smsAlert      Boolean  @default(false)
   maketingEmail Boolean  @default(false)
@@ -139,9 +136,8 @@ model Security {
   twoFactorSecret  String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
+  userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id])
 }
 
 model Country {
@@ -227,7 +223,7 @@ model CurrencyPaymentMethod {
   receiverFeePercentage Float            @default(0)
   senderFeePercentage   Float            @default(0)
   currencyRate          CurrencyRate     @relation(fields: [currencyRateId], references: [id])
-  ourPaymentMethod      OurPaymentMethod @relation(fields: [ourPaymentMethodId], references: [id])
+  ourPaymentMethod      OurPaymentMethod @relation(fields: [ourPaymentMethodId], references: [id], onDelete: Cascade)
 
   @@index([currencyRateId])
 }
@@ -297,7 +293,6 @@ model OurPaymentMethod {
   updatedAt                DateTime                @updatedAt
   currencyRateConfigs      CurrencyPaymentMethod[]
   user                     User                    @relation(fields: [userId], references: [id])
-  tickets                  Ticket[]
 }
 
 model BankAccount {
@@ -323,35 +318,35 @@ model BankAccount {
 }
 
 model Ticket {
-  id                   String                      @id @default(uuid())
-  status               TicketStatus                @default(PENDING)
-  userId               String
-  recipientId          String
-  paymentMethodId      String
-  currencyRateId       String
-  amountSent           Float
-  appliedRate          Float
-  feeRatePercentage    Float                       @default(0)
-  feePaymentPercentage Float                       @default(0)
-  totalDepositRequired Float
-  totalToReceive       Float
-  referenceNumber      String?
-  receiptImage         String?
-  notes                String?
-  createdAt            DateTime                    @default(now())
-  updatedAt            DateTime                    @updatedAt
-  ticketNumber         String                      @unique
-  ticketType           TicketType
-  assessorId           String?
-  chat                 Chat?
-  review               Review?
-  assessor             User?                       @relation("AssessorTickets", fields: [assessorId], references: [id])
-  currencyRate         CurrencyRate                @relation(fields: [currencyRateId], references: [id])
-  ourPaymentMethod     OurPaymentMethod            @relation(fields: [paymentMethodId], references: [id])
-  recipient            Recipient                   @relation(fields: [recipientId], references: [id])
-  user                 User                        @relation("UserTickets", fields: [userId], references: [id])
-  receiptNotifications TicketReceiptNotification[]
-  supportTickets       SupportTicket[]
+  id                    String                      @id @default(uuid())
+  status                TicketStatus                @default(PENDING)
+  userId                String
+  recipientId           String
+  paymentMethodId       String?
+  paymentMethodSnapshot Json?
+  currencyRateId        String
+  amountSent            Float
+  appliedRate           Float
+  feeRatePercentage     Float                       @default(0)
+  feePaymentPercentage  Float                       @default(0)
+  totalDepositRequired  Float
+  totalToReceive        Float
+  referenceNumber       String?
+  receiptImage          String?
+  notes                 String?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  ticketNumber          String                      @unique
+  ticketType            TicketType
+  assessorId            String?
+  chat                  Chat?
+  review                Review?
+  supportTickets        SupportTicket[]
+  assessor              User?                       @relation("AssessorTickets", fields: [assessorId], references: [id])
+  currencyRate          CurrencyRate                @relation(fields: [currencyRateId], references: [id])
+  recipient             Recipient                   @relation(fields: [recipientId], references: [id])
+  user                  User                        @relation("UserTickets", fields: [userId], references: [id])
+  receiptNotifications  TicketReceiptNotification[]
 
   @@index([status, createdAt])
   @@index([userId])
@@ -376,37 +371,33 @@ model TicketReceiptNotification {
 }
 
 model SupportTicket {
-  id            String       @id @default(uuid())
-  supportNumber String       @unique
-  title         String
-  description   String
-  status        TicketStatus @default(PENDING)
-  priority      Priority     @default(MEDIUM)
-
-  evidenceImage String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id              String       @id @default(uuid())
+  supportNumber   String       @unique
+  title           String
+  description     String
+  status          TicketStatus @default(PENDING)
+  priority        Priority     @default(MEDIUM)
+  evidenceImage   String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   relatedTicketId String?
-  relatedTicket   Ticket? @relation(fields: [relatedTicketId], references: [id])
   assignedToId    String?
-  assignedTo      User?   @relation("AssignedSupport", fields: [assignedToId], references: [id])
   userId          String
-  user            User    @relation("UserSupport", fields: [userId], references: [id])
-
-  chat Chat?
+  chat            Chat?
+  assignedTo      User?        @relation("AssignedSupport", fields: [assignedToId], references: [id])
+  relatedTicket   Ticket?      @relation(fields: [relatedTicketId], references: [id])
+  user            User         @relation("UserSupport", fields: [userId], references: [id])
 }
 
 model Chat {
   id              String         @id @default(uuid())
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-  messages        Message[]
   ticketId        String?        @unique
-  ticket          Ticket?        @relation(fields: [ticketId], references: [id])
   supportTicketId String?        @unique
   supportTicket   SupportTicket? @relation(fields: [supportTicketId], references: [id])
+  ticket          Ticket?        @relation(fields: [ticketId], references: [id])
+  messages        Message[]
 }
 
 model Message {

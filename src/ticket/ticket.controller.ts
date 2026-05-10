@@ -109,4 +109,11 @@ export class TicketController {
   ) {
     return this.ticketService.finalizeTicket(ticketNumber, user.sub);
   }
+
+  @Get('user-summary')
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
+  getUserSummary(@GetUser() user: UserAuth) {
+    return this.ticketService.getUserSummary(user.sub);
+  }
 }
