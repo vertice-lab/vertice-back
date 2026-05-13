@@ -10,6 +10,7 @@ import {
   sendOtpEmailTemplate,
   sendOtpForgotPasswordTemplate,
   sendDeleteAccountTemplate,
+  sendDeleteAccountOtpTemplate,
   sendSupportTemplate,
 } from 'src/auth/emails/emails';
 import { Resend } from 'resend';
@@ -91,6 +92,20 @@ export class EmailServiceService {
         'Eliminar cuenta permanentemente - Vértice',
         email,
         sendDeleteAccountTemplate({ email, token }),
+      );
+    } catch (error: any) {
+      this.logger.error(`Email sending failed: ${error.message}`);
+      throw new InternalServerErrorException('Email sending failed');
+    }
+  }
+
+  async sendDeleteAccountOtpEmail(email: string, token: string) {
+    try {
+      await this.emailConfig(
+        'support',
+        'Código de verificación - Eliminar cuenta - Vértice',
+        email,
+        sendDeleteAccountOtpTemplate({ email, token }),
       );
     } catch (error: any) {
       this.logger.error(`Email sending failed: ${error.message}`);

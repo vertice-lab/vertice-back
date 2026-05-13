@@ -24,7 +24,7 @@ import { Roles } from 'src/auth/interfaces/enums/roles';
 import { CreateRoleDto } from 'src/user/dto/create-role.dto';
 import { AssessorStatus } from 'src/ticket/enums/ticket-status.enum';
 import { EmailServiceService } from 'src/auth/services/email-service/email-service.service';
-import { generateRandomCode } from 'src/common/utils/random-code';
+import { generateRandomCode, generateOTP } from 'src/common/utils/random-code';
 import { ConfirmDeleteAccountDto } from '../../dto';
 
 @Injectable()
@@ -510,6 +510,26 @@ export class UserService implements OnModuleInit {
     await this.emailService.sendDeleteAccountEmail(user.email, deleteToken);
 
     return { ok: true, msg: 'Se han enviado las instrucciones al correo' };
+  }
+
+  async requestDeleteAccountMobile(userId: string): Promise<{ ok: true; msg: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user.active) throw new BadRequestException('Usuario inactivo');
+
+    const deleteOtp = generateOTP();
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { token: deleteOtp },
+    });
+
+    await this.emailService.sendDeleteAccountOtpEmail(user.email, deleteOtp);
+
+    return { ok: true, msg: 'Se ha enviado el código de verificación a tu correo' };
   }
 
   async validateDeleteToken(userId: string, token: string): Promise<{ valid: true; requiresPassword: boolean }> {

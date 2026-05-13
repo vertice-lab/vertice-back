@@ -293,7 +293,7 @@ export const sendDeleteAccountTemplate = ({
                                     <p style="margin:0 0 16px 0;color:#17252a;">Hola <strong>${email}</strong>, hemos recibido una solicitud para eliminar permanentemente tu cuenta de Vértice. Haz clic en el botón a continuación para confirmar.</p>
 
                                     <div style="text-align:center;margin:20px 0;">
-                                        <a href="${process.env.FRONTEND_URL}/delete-account/${token}" style="background:#dc2626;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;display:inline-block;font-weight:600;border: 1px solid #b91c1c;">Eliminar mi cuenta</a>
+                                        <a href="${process.env.FRONTEND_URL}/delete-account/${token}" style="background:#03045e;color:#00ffd0;text-decoration:none;padding:12px 22px;border-radius:8px;display:inline-block;font-weight:600;border: 1px solid #0077b6;">Eliminar mi cuenta</a>
                                     </div>
 
                                     <p style="margin:0 0 8px 0;color:#0077b6;font-size:13px">Si no solicitaste este cambio, puedes ignorar este correo. Tu cuenta está segura. El enlace es de un solo uso y caduca por seguridad.</p>
@@ -304,6 +304,69 @@ export const sendDeleteAccountTemplate = ({
                                 <td style="padding:12px 32px 28px 32px;border-top:1px solid #d7d9ce;color:#0077b6;font-size:13px;">
                                     <p style="margin:0">¿Problemas? Contáctanos respondiendo a este correo.</p>
                                     <p style="margin:8px 0 0 0;color:#17252a;font-size:12px;opacity:0.6">© ${new Date().getFullYear()} Vértice. Todos los derechos reservados.</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+    </html>
+    `;
+  return emailTemplate;
+};
+
+export const sendDeleteAccountOtpTemplate = ({
+  email,
+  token,
+}: TempEmailInterface): string => {
+  const emailTemplate = `
+    <!doctype html>
+    <html>
+        <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Eliminar cuenta - Vértice</title>
+        </head>
+        <body style="margin:0;padding:20px;font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background-color:#fcfffd; color:#17252a;">
+            <table role="presentation" width="100%" style="max-width:680px;margin:0 auto;">
+                <tr>
+                    <td style="padding:24px 0;">
+                        <table role="presentation" width="100%" style="background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(3,4,94,0.08);overflow:hidden;border:1px solid #d7d9ce;">
+                            <tr>
+                                <td style="padding:22px 28px 8px 28px;text-align:center;background:linear-gradient(180deg, rgba(0,255,208,0.1), transparent); background-color: #03045e;">
+                                    <div style="display:flex;align-items:center;gap:12px;justify-content:center;">
+                                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                            <rect width="24" height="24" rx="6" fill="#03045e" />
+                                            <path d="M7 13c1.333-2 2.667-3 4-3s2.667 1 4 3" stroke="#00ffd0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <div style="text-align:left">
+                                            <div style="font-weight:700;color:#00ffd0;font-size:18px;line-height:1">Vértice</div>
+                                            <div style="font-size:12px;color:#0077b6">Eliminación de cuenta</div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding:28px 32px 8px 32px;text-align:left;">
+                                    <h2 style="margin:0 0 8px 0;font-size:18px;color:#03045e;font-weight:700;">Solicitud de eliminación de cuenta</h2>
+                                    <p style="margin:0 0 16px 0;color:#17252a;">Hola <strong>${email}</strong>, hemos recibido una solicitud para eliminar permanentemente tu cuenta de Vértice. Usa el siguiente código para confirmar la eliminación.</p>
+
+                                    <div style="text-align:center;margin:30px 0;">
+                                        <div style="background:#03045e;color:#00ffd0;padding:16px 32px;border-radius:12px;display:inline-block;font-weight:700;font-size:32px;letter-spacing:8px;border: 1px solid #00ffd0;box-shadow: 0 0 15px rgba(0,255,208,0.3);">
+                                            ${token}
+                                        </div>
+                                    </div>
+
+                                    <p style="margin:0 0 8px 0;color:#0077b6;font-size:13px; text-align: center;">Este código expira pronto y es de un solo uso. No lo compartas con nadie.</p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding:24px 32px 28px 32px;border-top:1px solid #d7d9ce;color:#0077b6;font-size:13px; text-align: center;">
+                                    <p style="margin:0">Si no solicitaste este cambio, puedes ignorar este correo. Tu cuenta está segura.</p>
+                                    <p style="margin:16px 0 0 0;color:#17252a;font-size:12px;opacity:0.6">© ${new Date().getFullYear()} Vértice. Todos los derechos reservados.</p>
                                 </td>
                             </tr>
                         </table>

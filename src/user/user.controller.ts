@@ -51,6 +51,13 @@ export class UserController {
     return this.userService.requestDeleteAccount(user.sub);
   }
 
+  @Post('request-delete-account/mobile')
+  @RoleProtected(ValidRoles.client)
+  @UseGuards(AuthGuard, RolesGuard)
+  requestDeleteAccountMobile(@GetUser() user: UserAuth) {
+    return this.userService.requestDeleteAccountMobile(user.sub);
+  }
+
   @Get('validate-delete-account/:token')
   @RoleProtected(ValidRoles.client)
   @UseGuards(AuthGuard, RolesGuard)
