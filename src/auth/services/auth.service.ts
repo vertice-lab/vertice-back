@@ -26,17 +26,23 @@ import * as argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from 'src/user/services/user/user.service';
 import { EncryptService } from './encrypt/encrypt.service';
+import { OAuth2Client } from 'google-auth-library';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   private logger = new Logger(AuthService.name);
+  private googleClient = new OAuth2Client();
+
   constructor(
     private emailService: EmailServiceService,
     private prisma: PrismaClientService,
     private jwtService: JwtService,
     private readonly userService: UserService,
     private encryptService: EncryptService,
+    private configService: ConfigService,
   ) { }
+
 
   async tempRegister(tempRegister: TempRegisterAuthDto) {
     const newToken = generateRandomCode();
@@ -241,9 +247,33 @@ export class AuthService {
 
   async syncGoogleUser(googleData: GoogleCallbackDto) {
     try {
+      // 1. Verificar el ID Token con Google
+      const allowedClientIds = [
+        this.configService.get<string>('GOOGLE_WEB_CLIENT_ID'),
+        this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID'),
+        this.configService.get<string>('GOOGLE_IOS_CLIENT_ID'),
+      ].filter(Boolean);
+
+      if (allowedClientIds.length === 0) {
+        this.logger.error('GOOGLE_CLIENT_IDs not configured in environment variables');
+        throw new InternalServerErrorException('Configuración de autenticación incompleta');
+      }
+
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: googleData.idToken,
+        audience: allowedClientIds as string[],
+      });
+
+
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email_verified || !payload.email) {
+        throw new UnauthorizedException('Token de Google inválido o email no verificado');
+      }
+
+      const { sub: googleId, email, name, picture: image } = payload;
 
       const existingUser = await this.prisma.user.findUnique({
-        where: { email: googleData.email },
+        where: { email: email },
         include: { providers: true },
       });
 
@@ -256,7 +286,7 @@ export class AuthService {
 
       const user = await this.prisma.$transaction(async (prisma) => {
         const existingUser = await prisma.user.findUnique({
-          where: { email: googleData.email },
+          where: { email: email },
           include: {
             role: true,
             country: true,
@@ -279,13 +309,13 @@ export class AuthService {
 
         const newUser = await prisma.user.create({
           data: {
-            name: googleData.name?.split(' ')[0] || '',
-            lastName: googleData.name?.split(' ')[1] || '',
-            email: googleData.email,
+            name: name?.split(' ')[0] || '',
+            lastName: name?.split(' ').slice(1).join(' ') || '',
+            email: email,
             password: await argon2.hash(this.generateRandomPassword()),
             verified: true,
             active: true,
-            image: googleData.image,
+            image: image,
             role: { connect: { id: role.id } },
             country: defaultCountry
               ? { connect: { country_code: defaultCountry.country_code } }
@@ -293,7 +323,7 @@ export class AuthService {
             providers: {
               create: {
                 provider: 'google',
-                providerId: googleData.googleId,
+                providerId: googleId,
               },
             },
           },
@@ -315,20 +345,22 @@ export class AuthService {
         await this.prisma.provider.create({
           data: {
             provider: 'google',
-            providerId: googleData.googleId,
+            providerId: googleId,
             userId: user.id,
           },
         });
       }
+
       const userIdString = String(user.id);
 
       const encryptedUserId = await this.encryptService.encrypt(userIdString);
 
-      const payload = { sub: encryptedUserId };
+      const jwtPayload = { sub: encryptedUserId };
 
-      const access_token = await this.jwtService.signAsync(payload, {
+      const access_token = await this.jwtService.signAsync(jwtPayload, {
         expiresIn: '3d',
       });
+
 
       return {
         ok: true,
@@ -384,14 +416,15 @@ export class AuthService {
 
       const encryptedUserId = await this.encryptService.encrypt(userIdString);
 
-      const payload = { sub: encryptedUserId };
+      const jwtPayload = { sub: encryptedUserId };
 
       return {
         ok: true,
-        access_token: await this.jwtService.signAsync(payload, {
+        access_token: await this.jwtService.signAsync(jwtPayload, {
           expiresIn: '3d',
         }),
       };
+
     } catch (error) {
       if (
         error instanceof NotFoundException ||

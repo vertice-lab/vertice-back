@@ -65,19 +65,10 @@ export class RegisterAuthDto {
 
 export class GoogleCallbackDto {
   @IsString()
-  googleId: string;
-
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @IsOptional()
-  name?: string;
-
-  @IsString()
-  @IsOptional()
-  image?: string;
+  @IsNotEmpty()
+  idToken: string;
 }
+
 
 export class LoginAuthDto {
   @IsString()

@@ -1,6 +1,6 @@
 {
   "name": "vertice-backend",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "",
   "author": "",
   "private": true,
@@ -44,6 +44,8 @@
     "axios": "^1.15.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "dotenv": "^17.0.0",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
@@ -51,8 +53,7 @@
     "reflect-metadata": "^0.2.2",
     "resend": "^6.0.1",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.8.3",
-    "dotenv": "^17.0.0"
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
