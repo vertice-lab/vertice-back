@@ -28,7 +28,7 @@ export class UserController {
     return ip;
   }
 
-  // !BORRAR
+  // !BORRAR pendiente
   @Post('role')
   create(@Body() createRoleDto: CreateRoleDto) {
     return this.userService.createRole(createRoleDto);
