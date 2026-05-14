@@ -13,4 +13,7 @@ export class PaginationQueryDto {
   @IsInt()
   @Min(1)
   limit?: number = 5;
+
+  @IsOptional()
+  period?: 'Todos' | 'Hoy' | 'Semana' | 'Mes' = 'Todos';
 }
